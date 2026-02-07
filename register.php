@@ -200,12 +200,18 @@ $last_name  = $_GET['last_name'] ?? '';   // STT returns the transcribed text
 $phone_num  = $_GET['phone_num'] ?? '';
 $caller_phone = $phone;
 
-// Build record in requested format
+// Build file names for recordings
+$firstname_file = $unique_id . "-firstname";
+$lastname_file = $unique_id . "-lastname";
+
+// Build record in requested format (including file names)
 $record_line = "ID:$unique_id,";
 $record_line .= "מספר נציג:$agent_num,";
 $record_line .= "שם פרטי:$first_name,";
 $record_line .= "שם משפחה:$last_name,";
-$record_line .= "טלפון:$phone_num\n";
+$record_line .= "טלפון:$phone_num,";
+$record_line .= "קובץ שם פרטי:$firstname_file,";
+$record_line .= "קובץ שם משפחה:$lastname_file\n";
 
 // Append to file
 file_put_contents($save_file, $record_line, FILE_APPEND | LOCK_EX);
