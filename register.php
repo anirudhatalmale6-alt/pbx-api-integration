@@ -5,8 +5,8 @@
  * Flow:
  * 1. "Enter your agent number" (4 digits)
  * 2. Check if agent already exists -> if yes, say "already registered" and exit
- * 3. "Say your first name" (STT - speech to text)
- * 4. "Say your last name" (STT - speech to text)
+ * 3. "Say your first name" (STT - speech to text) - retry on error
+ * 4. "Say your last name" (STT - speech to text) - retry on error
  * 5. "Enter your phone number" (9-10 digits)
  * 6. Save all data to TXT file with unique ID
  */
@@ -36,6 +36,23 @@ function agentExists($agent_num, $file_path) {
     return strpos($content, "מספר נציג:$agent_num,") !== false;
 }
 
+// --- Function to check if STT failed ---
+function sttFailed($value) {
+    // STT returns error text if failed
+    $errors = ['error', 'שגיאה', 'fail', 'timeout', 'no_speech', 'לא זוהה'];
+    $value_lower = mb_strtolower($value);
+    foreach ($errors as $err) {
+        if (strpos($value_lower, $err) !== false) {
+            return true;
+        }
+    }
+    // Also check if empty or very short
+    if (empty($value) || mb_strlen($value) < 2) {
+        return true;
+    }
+    return false;
+}
+
 // --- Step 1: Get agent number (4 digits) ---
 if (!isset($_GET['agent_num'])) {
     $result = [
@@ -60,11 +77,14 @@ if (!isset($_GET['checked'])) {
 
     // Check if agent exists in file
     if (agentExists($agent_num, $save_file)) {
-        // Agent already registered - play message and go back
+        // Agent already registered - play message and go back (using simpleMenu for text)
         $result = [
             [
-                "type" => "audioPlayer",
-                "name" => "exists",
+                "type" => "simpleMenu",
+                "name" => "msg",
+                "times" => 1,
+                "timeout" => 1,
+                "enabledKeys" => "",
                 "files" => [
                     ["text" => "מספר הנציג כבר רשום במערכת"]
                 ]
@@ -79,7 +99,6 @@ if (!isset($_GET['checked'])) {
     }
 
     // Agent not found - continue to registration with "please wait" message
-    // Use simpleMenu to set 'checked' flag and continue
     $result = [
         "type" => "simpleMenu",
         "name" => "checked",
@@ -96,7 +115,7 @@ if (!isset($_GET['checked'])) {
 }
 
 // --- Step 2: Record first name with STT (Speech-to-Text) ---
-if (!isset($_GET['first_name'])) {
+if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
     $result = [
         "type" => "stt",
         "name" => "first_name",
@@ -112,7 +131,7 @@ if (!isset($_GET['first_name'])) {
 }
 
 // --- Step 3: Record last name with STT (Speech-to-Text) ---
-if (!isset($_GET['last_name'])) {
+if (!isset($_GET['last_name']) || sttFailed($_GET['last_name'])) {
     $result = [
         "type" => "stt",
         "name" => "last_name",
@@ -152,10 +171,6 @@ $last_name  = $_GET['last_name'] ?? '';   // STT returns the transcribed text
 $phone_num  = $_GET['phone_num'] ?? '';
 $caller_phone = $phone;
 
-// Debug - log all GET parameters to see what's coming
-$debug_log = "/var/www/html/debug.txt";
-file_put_contents($debug_log, date('Y-m-d H:i:s') . " - GET: " . print_r($_GET, true) . "\n", FILE_APPEND);
-
 // Generate unique ID (timestamp based)
 $unique_id = date('YmdHis') . rand(100, 999);
 
@@ -169,11 +184,14 @@ $record_line .= "טלפון:$phone_num\n";
 // Append to file
 file_put_contents($save_file, $record_line, FILE_APPEND | LOCK_EX);
 
-// --- Play success message and end ---
+// --- Play success message and end (using simpleMenu for text) ---
 $result = [
     [
-        "type" => "audioPlayer",
-        "name" => "success",
+        "type" => "simpleMenu",
+        "name" => "done",
+        "times" => 1,
+        "timeout" => 1,
+        "enabledKeys" => "",
         "files" => [
             ["text" => "תודה רבה. הנתונים נשמרו בהצלחה. נציג יחזור אליכם בהקדם"]
         ]
