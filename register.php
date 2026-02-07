@@ -4,10 +4,11 @@
  *
  * Flow:
  * 1. "Enter your agent number" (4 digits)
- * 2. "Say your first name" (STT - speech to text)
- * 3. "Say your last name" (STT - speech to text)
- * 4. "Enter your phone number" (9-10 digits)
- * 5. Save all data to TXT file with unique ID
+ * 2. Check if agent already exists -> if yes, say "already registered" and exit
+ * 3. "Say your first name" (STT - speech to text)
+ * 4. "Say your last name" (STT - speech to text)
+ * 5. "Enter your phone number" (9-10 digits)
+ * 6. Save all data to TXT file with unique ID
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -25,6 +26,16 @@ if ($call_status === 'HANGUP') {
     exit;
 }
 
+// --- Function to check if agent number exists ---
+function agentExists($agent_num, $file_path) {
+    if (!file_exists($file_path)) {
+        return false;
+    }
+    $content = file_get_contents($file_path);
+    // Search for "מספר נציג:XXXX," pattern
+    return strpos($content, "מספר נציג:$agent_num,") !== false;
+}
+
 // --- Step 1: Get agent number (4 digits) ---
 if (!isset($_GET['agent_num'])) {
     $result = [
@@ -37,6 +48,47 @@ if (!isset($_GET['agent_num'])) {
         "setMusic" => "yes",
         "files" => [
             ["text" => "הקישו את מספר הנציג שלכם"]
+        ]
+    ];
+    echo json_encode($result, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// --- Step 1.5: Check if agent already exists ---
+if (!isset($_GET['checked'])) {
+    $agent_num = $_GET['agent_num'];
+
+    // Check if agent exists in file
+    if (agentExists($agent_num, $save_file)) {
+        // Agent already registered - play message and go back
+        $result = [
+            [
+                "type" => "audioPlayer",
+                "name" => "exists",
+                "files" => [
+                    ["text" => "מספר הנציג כבר רשום במערכת"]
+                ]
+            ],
+            [
+                "type" => "goTo",
+                "goTo" => ".."
+            ]
+        ];
+        echo json_encode($result, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Agent not found - continue to registration with "please wait" message
+    // Use simpleMenu to set 'checked' flag and continue
+    $result = [
+        "type" => "simpleMenu",
+        "name" => "checked",
+        "times" => 1,
+        "timeout" => 1,
+        "enabledKeys" => "1,2,3,4,5,6,7,8,9,0",
+        "setMusic" => "yes",
+        "files" => [
+            ["text" => "אנא המתן"]
         ]
     ];
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
