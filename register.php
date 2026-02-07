@@ -9,6 +9,9 @@
  * 4. "Say your last name" (STT - speech to text) - retry on error
  * 5. "Enter your phone number" (9-10 digits)
  * 6. Save all data to TXT file with unique ID
+ *
+ * Recordings saved to: /var/www/html/NE/
+ * Format: ID001-firstname.wav, ID001-lastname.wav
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -20,6 +23,9 @@ $call_status = $_GET['PBXcallStatus'] ?? '';
 
 // File to save registrations
 $save_file = '/var/www/html/NE.txt';
+
+// Folder to save recordings (PBX saveFolder ID - you need to set this to your folder ID)
+$recordings_folder = "NE";  // This should be the extension ID for the NE folder in your PBX
 
 // --- Handle hangup ---
 if ($call_status === 'HANGUP') {
@@ -53,6 +59,20 @@ function sttFailed($value) {
     return false;
 }
 
+// --- Function to get next ID ---
+function getNextId($file_path) {
+    if (!file_exists($file_path)) {
+        return 'ID001';
+    }
+    $content = file_get_contents($file_path);
+    preg_match_all('/ID:ID(\d+),/', $content, $matches);
+    if (empty($matches[1])) {
+        return 'ID001';
+    }
+    $max_id = max(array_map('intval', $matches[1]));
+    return 'ID' . str_pad($max_id + 1, 3, '0', STR_PAD_LEFT);
+}
+
 // --- Step 1: Get agent number (4 digits) ---
 if (!isset($_GET['agent_num'])) {
     $result = [
@@ -71,7 +91,7 @@ if (!isset($_GET['agent_num'])) {
     exit;
 }
 
-// --- Step 1.5: Check if agent already exists ---
+// --- Step 1.5: Check if agent already exists and generate ID ---
 if (!isset($_GET['checked'])) {
     $agent_num = $_GET['agent_num'];
 
@@ -98,7 +118,11 @@ if (!isset($_GET['checked'])) {
         exit;
     }
 
+    // Generate unique ID for this registration
+    $unique_id = getNextId($save_file);
+
     // Agent not found - continue to registration with "please wait" message
+    // Pass the generated ID to the next step using getDTMF with the ID encoded
     $result = [
         "type" => "simpleMenu",
         "name" => "checked",
@@ -114,6 +138,9 @@ if (!isset($_GET['checked'])) {
     exit;
 }
 
+// Generate unique ID once we have checked (based on current file content)
+$unique_id = getNextId($save_file);
+
 // --- Step 2: Record first name with STT (Speech-to-Text) ---
 if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
     $result = [
@@ -121,7 +148,8 @@ if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
         "name" => "first_name",
         "min" => 1,
         "max" => 10,
-        "fileName" => "first_name_" . $_GET['agent_num'] . "_" . $call_id,
+        "fileName" => $unique_id . "-firstname",
+        "saveFolder" => $recordings_folder,
         "files" => [
             ["text" => "אמרו את השם הפרטי שלכם"]
         ]
@@ -137,7 +165,8 @@ if (!isset($_GET['last_name']) || sttFailed($_GET['last_name'])) {
         "name" => "last_name",
         "min" => 1,
         "max" => 10,
-        "fileName" => "last_name_" . $_GET['agent_num'] . "_" . $call_id,
+        "fileName" => $unique_id . "-lastname",
+        "saveFolder" => $recordings_folder,
         "files" => [
             ["text" => "אמרו את שם המשפחה שלכם"]
         ]
@@ -170,9 +199,6 @@ $first_name = $_GET['first_name'] ?? '';  // STT returns the transcribed text
 $last_name  = $_GET['last_name'] ?? '';   // STT returns the transcribed text
 $phone_num  = $_GET['phone_num'] ?? '';
 $caller_phone = $phone;
-
-// Generate unique ID (timestamp based)
-$unique_id = date('YmdHis') . rand(100, 999);
 
 // Build record in requested format
 $record_line = "ID:$unique_id,";
