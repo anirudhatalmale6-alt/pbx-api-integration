@@ -146,11 +146,15 @@ if (!isset($_GET['phone_num'])) {
 }
 
 // --- Step 5: All data collected - save to file ---
-$agent_num  = $_GET['agent_num'];
-$first_name = $_GET['first_name'];  // STT returns the transcribed text
-$last_name  = $_GET['last_name'];   // STT returns the transcribed text
-$phone_num  = $_GET['phone_num'];
+$agent_num  = $_GET['agent_num'] ?? '';
+$first_name = $_GET['first_name'] ?? '';  // STT returns the transcribed text
+$last_name  = $_GET['last_name'] ?? '';   // STT returns the transcribed text
+$phone_num  = $_GET['phone_num'] ?? '';
 $caller_phone = $phone;
+
+// Debug - log all GET parameters to see what's coming
+$debug_log = "/var/www/html/debug.txt";
+file_put_contents($debug_log, date('Y-m-d H:i:s') . " - GET: " . print_r($_GET, true) . "\n", FILE_APPEND);
 
 // Generate unique ID (timestamp based)
 $unique_id = date('YmdHis') . rand(100, 999);
