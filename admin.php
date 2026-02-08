@@ -26,6 +26,11 @@ if (isset($_GET['action'])) {
             echo json_encode(deleteRecord($data_file, $id));
             exit;
 
+        case 'delete_multiple':
+            $ids = json_decode($_POST['ids'] ?? '[]', true);
+            echo json_encode(deleteMultipleRecords($data_file, $ids));
+            exit;
+
         case 'update':
             $id = $_POST['id'] ?? '';
             $agent_num = $_POST['agent_num'] ?? '';
@@ -98,6 +103,33 @@ function deleteRecord($file, $id) {
         return ['success' => true];
     }
     return ['success' => false, 'message' => 'Record not found'];
+}
+
+function deleteMultipleRecords($file, $ids) {
+    if (!file_exists($file)) {
+        return ['success' => false, 'message' => 'File not found'];
+    }
+    if (empty($ids)) {
+        return ['success' => false, 'message' => 'No IDs provided'];
+    }
+    $lines = file($file, FILE_IGNORE_NEW_LINES);
+    $new_lines = [];
+    $deleted_count = 0;
+    foreach ($lines as $line) {
+        $should_delete = false;
+        foreach ($ids as $id) {
+            if (strpos($line, "ID:$id,") !== false) {
+                $should_delete = true;
+                $deleted_count++;
+                break;
+            }
+        }
+        if (!$should_delete) {
+            $new_lines[] = $line;
+        }
+    }
+    file_put_contents($file, implode("\n", $new_lines) . "\n");
+    return ['success' => true, 'deleted' => $deleted_count];
 }
 
 function updateRecord($file, $id, $agent_num, $first_name, $last_name, $phone) {
@@ -191,6 +223,13 @@ function getAudioFile($api_url, $api_key, $filename) {
             padding: 20px;
             font-size: 1.2em;
             font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
         }
         table {
             width: 100%;
@@ -208,6 +247,9 @@ function getAudioFile($api_url, $api_key, $filename) {
         }
         tr:hover {
             background: #f5f5f5;
+        }
+        tr.selected {
+            background: #e3f2fd;
         }
         .actions {
             display: flex;
@@ -250,6 +292,14 @@ function getAudioFile($api_url, $api_key, $filename) {
         .btn-cancel {
             background: #95a5a6;
             color: white;
+        }
+        .btn-delete-selected {
+            background: #c0392b;
+            color: white;
+            display: none;
+        }
+        .btn-delete-selected.visible {
+            display: inline-block;
         }
         .modal {
             display: none;
@@ -310,6 +360,12 @@ function getAudioFile($api_url, $api_key, $filename) {
             padding: 50px;
             color: #666;
         }
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
         .refresh-btn {
             background: #1e3a5f;
             color: white;
@@ -317,20 +373,31 @@ function getAudioFile($api_url, $api_key, $filename) {
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            margin-bottom: 20px;
         }
         .audio-buttons {
             display: flex;
             gap: 10px;
             flex-direction: column;
         }
-        .audio-btn-group {
-            display: flex;
-            gap: 5px;
+        .checkbox-cell {
+            width: 40px;
+            text-align: center;
         }
-        .btn-small {
-            padding: 5px 10px;
-            font-size: 12px;
+        .checkbox-cell input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .selected-count {
+            color: white;
+            background: #e74c3c;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: none;
+        }
+        .selected-count.visible {
+            display: inline-block;
         }
     </style>
 </head>
@@ -338,13 +405,20 @@ function getAudioFile($api_url, $api_key, $filename) {
     <div class="container">
         <h1>ניהול נציגים</h1>
 
-        <button class="refresh-btn" onclick="loadData()">🔄 רענן נתונים</button>
+        <div class="toolbar">
+            <button class="refresh-btn" onclick="loadData()">🔄 רענן נתונים</button>
+            <button class="btn btn-delete-selected" id="deleteSelectedBtn" onclick="openDeleteMultiple()">🗑️ מחק נבחרים</button>
+            <span class="selected-count" id="selectedCount">נבחרו: 0</span>
+        </div>
 
         <div class="card">
-            <div class="card-header">רשימת נציגים רשומים</div>
+            <div class="card-header">
+                <span>רשימת נציגים רשומים</span>
+            </div>
             <table id="agentsTable">
                 <thead>
                     <tr>
+                        <th class="checkbox-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                         <th>ID</th>
                         <th>מספר נציג</th>
                         <th>שם פרטי</th>
@@ -355,7 +429,7 @@ function getAudioFile($api_url, $api_key, $filename) {
                 </thead>
                 <tbody id="tableBody">
                     <tr>
-                        <td colspan="6" class="empty-state">טוען נתונים...</td>
+                        <td colspan="7" class="empty-state">טוען נתונים...</td>
                     </tr>
                 </tbody>
             </table>
@@ -423,18 +497,33 @@ function getAudioFile($api_url, $api_key, $filename) {
         </div>
     </div>
 
+    <!-- Delete Multiple Confirmation Modal -->
+    <div class="modal" id="deleteMultipleModal">
+        <div class="modal-content">
+            <div class="modal-header">אישור מחיקה מרובה</div>
+            <p>האם אתה בטוח שברצונך למחוק <strong id="deleteMultipleCount">0</strong> נציגים?</p>
+            <div class="modal-actions">
+                <button class="btn btn-cancel" onclick="closeModal('deleteMultipleModal')">ביטול</button>
+                <button class="btn btn-delete" onclick="confirmDeleteMultiple()">מחק הכל</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        let selectedIds = [];
+
         function loadData() {
             fetch('?action=get_data')
                 .then(res => res.json())
                 .then(data => {
                     const tbody = document.getElementById('tableBody');
                     if (data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">אין נציגים רשומים</td></tr>';
+                        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">אין נציגים רשומים</td></tr>';
                         return;
                     }
                     tbody.innerHTML = data.map(row => `
-                        <tr>
+                        <tr data-id="${row.id}">
+                            <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" value="${row.id}" onchange="updateSelection()"></td>
                             <td>${row.id || ''}</td>
                             <td>${row.agent_num || ''}</td>
                             <td>${row.first_name || ''}</td>
@@ -447,7 +536,76 @@ function getAudioFile($api_url, $api_key, $filename) {
                             </td>
                         </tr>
                     `).join('');
+                    selectedIds = [];
+                    updateSelectionUI();
                 });
+        }
+
+        function toggleSelectAll() {
+            const selectAll = document.getElementById('selectAll').checked;
+            document.querySelectorAll('.row-checkbox').forEach(cb => {
+                cb.checked = selectAll;
+                const row = cb.closest('tr');
+                if (selectAll) {
+                    row.classList.add('selected');
+                } else {
+                    row.classList.remove('selected');
+                }
+            });
+            updateSelection();
+        }
+
+        function updateSelection() {
+            selectedIds = [];
+            document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
+                selectedIds.push(cb.value);
+                cb.closest('tr').classList.add('selected');
+            });
+            document.querySelectorAll('.row-checkbox:not(:checked)').forEach(cb => {
+                cb.closest('tr').classList.remove('selected');
+            });
+            updateSelectionUI();
+        }
+
+        function updateSelectionUI() {
+            const count = selectedIds.length;
+            const deleteBtn = document.getElementById('deleteSelectedBtn');
+            const countSpan = document.getElementById('selectedCount');
+
+            if (count > 0) {
+                deleteBtn.classList.add('visible');
+                countSpan.classList.add('visible');
+                countSpan.textContent = 'נבחרו: ' + count;
+            } else {
+                deleteBtn.classList.remove('visible');
+                countSpan.classList.remove('visible');
+            }
+        }
+
+        function openDeleteMultiple() {
+            if (selectedIds.length === 0) return;
+            document.getElementById('deleteMultipleCount').textContent = selectedIds.length;
+            document.getElementById('deleteMultipleModal').classList.add('active');
+        }
+
+        function confirmDeleteMultiple() {
+            const formData = new FormData();
+            formData.append('ids', JSON.stringify(selectedIds));
+
+            fetch('?action=delete_multiple', {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success) {
+                    closeModal('deleteMultipleModal');
+                    document.getElementById('selectAll').checked = false;
+                    loadData();
+                } else {
+                    alert('שגיאה במחיקה: ' + result.message);
+                }
+            });
         }
 
         function openEdit(id, agentNum, firstName, lastName, phone) {
