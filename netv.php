@@ -163,7 +163,8 @@ function getAudioFile($api_url, $api_key, $filename) {
     $post_data = [
         'action' => 'fileDownload',
         'apiKey' => $api_key,
-        'fileName' => $filename
+        'fileName' => $filename,
+        'extension' => '7928'
     ];
 
     $ch = curl_init();
