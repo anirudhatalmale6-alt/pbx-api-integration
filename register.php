@@ -24,8 +24,8 @@ $call_status = $_GET['PBXcallStatus'] ?? '';
 // File to save registrations
 $save_file = '/var/www/html/NE.txt';
 
-// Folder to save recordings (PBX saveFolder ID - you need to set this to your folder ID)
-$recordings_folder = "NE";  // This should be the extension ID for the NE folder in your PBX
+// Folder to save recordings (PBX saveFolder ID)
+$recordings_folder = 7928;  // Extension ID for recordings
 
 // --- Handle hangup ---
 if ($call_status === 'HANGUP') {
