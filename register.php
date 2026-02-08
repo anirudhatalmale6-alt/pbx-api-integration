@@ -69,17 +69,33 @@ function sttFailed($value) {
 }
 
 // --- Function to get next ID ---
+// Uses a counter file to ensure IDs are always unique (never reused after deletion)
 function getNextId($file_path) {
-    if (!file_exists($file_path)) {
-        return 'ID001';
+    $counter_file = $file_path . '.counter';
+
+    // Read current counter
+    $current_id = 0;
+    if (file_exists($counter_file)) {
+        $current_id = (int)file_get_contents($counter_file);
     }
-    $content = file_get_contents($file_path);
-    preg_match_all('/ID:ID(\d+),/', $content, $matches);
-    if (empty($matches[1])) {
-        return 'ID001';
+
+    // Also check the data file for the max ID (in case counter was lost)
+    if (file_exists($file_path)) {
+        $content = file_get_contents($file_path);
+        preg_match_all('/ID:ID(\d+),/', $content, $matches);
+        if (!empty($matches[1])) {
+            $max_in_file = max(array_map('intval', $matches[1]));
+            if ($max_in_file > $current_id) {
+                $current_id = $max_in_file;
+            }
+        }
     }
-    $max_id = max(array_map('intval', $matches[1]));
-    return 'ID' . str_pad($max_id + 1, 3, '0', STR_PAD_LEFT);
+
+    // Increment and save
+    $next_id = $current_id + 1;
+    file_put_contents($counter_file, $next_id, LOCK_EX);
+
+    return 'ID' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
 }
 
 // --- Step 1: Get agent number (4 digits) ---
