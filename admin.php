@@ -44,6 +44,10 @@ if (isset($_GET['action'])) {
             $filename = $_GET['filename'] ?? '';
             getAudioFile($pbx_api_url, $pbx_api_key, $filename);
             exit;
+
+        case 'export_excel':
+            exportToExcel($data_file);
+            exit;
     }
 }
 
@@ -182,6 +186,52 @@ function getAudioFile($api_url, $api_key, $filename) {
         echo json_encode(['error' => 'Could not fetch audio file', 'response' => $response]);
     }
 }
+
+function exportToExcel($file) {
+    $data = getData($file);
+
+    // Create Excel XML (works without external libraries)
+    $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+    $xml .= '<?mso-application progid="Excel.Sheet"?>' . "\n";
+    $xml .= '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' . "\n";
+    $xml .= ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">' . "\n";
+    $xml .= '<Worksheet ss:Name="נציגים">' . "\n";
+    $xml .= '<Table>' . "\n";
+
+    // Header row
+    $xml .= '<Row>' . "\n";
+    $xml .= '<Cell><Data ss:Type="String">ID</Data></Cell>' . "\n";
+    $xml .= '<Cell><Data ss:Type="String">מספר נציג</Data></Cell>' . "\n";
+    $xml .= '<Cell><Data ss:Type="String">שם פרטי</Data></Cell>' . "\n";
+    $xml .= '<Cell><Data ss:Type="String">שם משפחה</Data></Cell>' . "\n";
+    $xml .= '<Cell><Data ss:Type="String">טלפון</Data></Cell>' . "\n";
+    $xml .= '</Row>' . "\n";
+
+    // Data rows
+    foreach ($data as $row) {
+        $xml .= '<Row>' . "\n";
+        $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['id'] ?? '') . '</Data></Cell>' . "\n";
+        $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['agent_num'] ?? '') . '</Data></Cell>' . "\n";
+        $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['first_name'] ?? '') . '</Data></Cell>' . "\n";
+        $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['last_name'] ?? '') . '</Data></Cell>' . "\n";
+        $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['phone'] ?? '') . '</Data></Cell>' . "\n";
+        $xml .= '</Row>' . "\n";
+    }
+
+    $xml .= '</Table>' . "\n";
+    $xml .= '</Worksheet>' . "\n";
+    $xml .= '</Workbook>';
+
+    // Send as download
+    $filename = 'agents_' . date('Y-m-d_H-i-s') . '.xls';
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: max-age=0');
+
+    // Add BOM for UTF-8
+    echo "\xEF\xBB\xBF";
+    echo $xml;
+}
 ?>
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -301,6 +351,17 @@ function getAudioFile($api_url, $api_key, $filename) {
         .btn-delete-selected.visible {
             display: inline-block;
         }
+        .btn-export {
+            background: #27ae60;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-export:hover {
+            background: #1e8449;
+        }
         .modal {
             display: none;
             position: fixed;
@@ -407,6 +468,7 @@ function getAudioFile($api_url, $api_key, $filename) {
 
         <div class="toolbar">
             <button class="refresh-btn" onclick="loadData()">🔄 רענן נתונים</button>
+            <button class="btn btn-export" onclick="exportExcel()">📊 ייצוא לאקסל</button>
             <button class="btn btn-delete-selected" id="deleteSelectedBtn" onclick="openDeleteMultiple()">🗑️ מחק נבחרים</button>
             <span class="selected-count" id="selectedCount">נבחרו: 0</span>
         </div>
@@ -684,6 +746,10 @@ function getAudioFile($api_url, $api_key, $filename) {
                 }
             });
         });
+
+        function exportExcel() {
+            window.location.href = '?action=export_excel';
+        }
 
         // Load data on page load
         loadData();
