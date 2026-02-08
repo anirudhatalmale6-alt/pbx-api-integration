@@ -10,8 +10,14 @@
  * 5. "Enter your phone number" (9-10 digits)
  * 6. Save all data to TXT file with unique ID
  *
- * Recordings saved to: /var/www/html/NE/
- * Format: ID001-firstname.wav, ID001-lastname.wav
+ * Audio files from extension 7929:
+ * 001 = הקישו מספר נציג
+ * 002 = אנא המתן
+ * 003 = מספר הנציג כבר רשום במערכת
+ * 004 = אמרו את השם הפרטי שלכם
+ * 005 = אמרו את שם המשפחה שלכם
+ * 006 = הקישו את מספר הטלפון שלכם
+ * 007 = תודה רבה, הנתונים נשמרו בהצלחה
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -26,6 +32,9 @@ $save_file = '/var/www/html/NE.txt';
 
 // Folder to save recordings (PBX saveFolder ID)
 $recordings_folder = 7928;  // Extension ID for recordings
+
+// Audio files extension
+$audio_extension = 7929;  // Extension ID for audio prompts
 
 // --- Handle hangup ---
 if ($call_status === 'HANGUP') {
@@ -84,7 +93,7 @@ if (!isset($_GET['agent_num'])) {
         "confirmType" => "digits",
         "setMusic" => "yes",
         "files" => [
-            ["text" => "הקישו את מספר הנציג שלכם"]
+            ["fileName" => "001", "extensionId" => "7929"]
         ]
     ];
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
@@ -97,7 +106,7 @@ if (!isset($_GET['checked'])) {
 
     // Check if agent exists in file
     if (agentExists($agent_num, $save_file)) {
-        // Agent already registered - play message and go back (using simpleMenu for text)
+        // Agent already registered - play message and go back
         $result = [
             [
                 "type" => "simpleMenu",
@@ -106,7 +115,7 @@ if (!isset($_GET['checked'])) {
                 "timeout" => 1,
                 "enabledKeys" => "",
                 "files" => [
-                    ["text" => "מספר הנציג כבר רשום במערכת"]
+                    ["fileName" => "003", "extensionId" => "7929"]
                 ]
             ],
             [
@@ -122,7 +131,6 @@ if (!isset($_GET['checked'])) {
     $unique_id = getNextId($save_file);
 
     // Agent not found - continue to registration with "please wait" message
-    // Pass the generated ID to the next step using getDTMF with the ID encoded
     $result = [
         "type" => "simpleMenu",
         "name" => "checked",
@@ -131,7 +139,7 @@ if (!isset($_GET['checked'])) {
         "enabledKeys" => "1,2,3,4,5,6,7,8,9,0",
         "setMusic" => "yes",
         "files" => [
-            ["text" => "אנא המתן"]
+            ["fileName" => "002", "extensionId" => "7929"]
         ]
     ];
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
@@ -151,7 +159,7 @@ if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
         "fileName" => $unique_id . "-firstname",
         "saveFolder" => $recordings_folder,
         "files" => [
-            ["text" => "אמרו את השם הפרטי שלכם"]
+            ["fileName" => "004", "extensionId" => "7929"]
         ]
     ];
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
@@ -168,7 +176,7 @@ if (!isset($_GET['last_name']) || sttFailed($_GET['last_name'])) {
         "fileName" => $unique_id . "-lastname",
         "saveFolder" => $recordings_folder,
         "files" => [
-            ["text" => "אמרו את שם המשפחה שלכם"]
+            ["fileName" => "005", "extensionId" => "7929"]
         ]
     ];
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
@@ -186,7 +194,7 @@ if (!isset($_GET['phone_num'])) {
         "confirmType" => "digits",
         "setMusic" => "yes",
         "files" => [
-            ["text" => "הקישו את מספר הטלפון שלכם"]
+            ["fileName" => "006", "extensionId" => "7929"]
         ]
     ];
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
@@ -216,7 +224,7 @@ $record_line .= "קובץ שם משפחה:$lastname_file\n";
 // Append to file
 file_put_contents($save_file, $record_line, FILE_APPEND | LOCK_EX);
 
-// --- Play success message and end (using simpleMenu for text) ---
+// --- Play success message and end ---
 $result = [
     [
         "type" => "simpleMenu",
@@ -225,7 +233,7 @@ $result = [
         "timeout" => 1,
         "enabledKeys" => "",
         "files" => [
-            ["text" => "תודה רבה. הנתונים נשמרו בהצלחה. נציג יחזור אליכם בהקדם"]
+            ["fileName" => "007", "extensionId" => "7929"]
         ]
     ],
     [
