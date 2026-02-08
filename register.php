@@ -143,9 +143,6 @@ if (!isset($_GET['checked'])) {
         exit;
     }
 
-    // Generate unique ID for this registration
-    $unique_id = getNextId($save_file);
-
     // Agent not found - continue to registration with "please wait" message
     $result = [
         "type" => "simpleMenu",
@@ -162,11 +159,8 @@ if (!isset($_GET['checked'])) {
     exit;
 }
 
-// Generate unique ID once we have checked (based on current file content)
-$unique_id = getNextId($save_file);
-
-// Use call_id as unique suffix (consistent across all steps of the same call)
-$call_suffix = $call_id;
+// Use call_id for filenames (consistent across all steps of the same call)
+// ID will only be generated once at save time (step 5)
 
 // --- Step 2: Record first name with STT (Speech-to-Text) ---
 if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
@@ -175,7 +169,7 @@ if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
         "name" => "first_name",
         "min" => 1,
         "max" => 10,
-        "fileName" => $unique_id . "-" . $call_suffix . "-firstname",
+        "fileName" => $call_id . "-firstname",
         "saveFolder" => $recordings_folder,
         "files" => [
             ["fileName" => "004", "extensionId" => "7929"]
@@ -192,7 +186,7 @@ if (!isset($_GET['last_name']) || sttFailed($_GET['last_name'])) {
         "name" => "last_name",
         "min" => 1,
         "max" => 10,
-        "fileName" => $unique_id . "-" . $call_suffix . "-lastname",
+        "fileName" => $call_id . "-lastname",
         "saveFolder" => $recordings_folder,
         "files" => [
             ["fileName" => "005", "extensionId" => "7929"]
@@ -227,9 +221,12 @@ $last_name  = $_GET['last_name'] ?? '';   // STT returns the transcribed text
 $phone_num  = $_GET['phone_num'] ?? '';
 $caller_phone = $phone;
 
-// Build file names for recordings (with call_id)
-$firstname_file = $unique_id . "-" . $call_suffix . "-firstname";
-$lastname_file = $unique_id . "-" . $call_suffix . "-lastname";
+// Generate unique ID only once at save time
+$unique_id = getNextId($save_file);
+
+// Build file names for recordings (using call_id - same as used during recording)
+$firstname_file = $call_id . "-firstname";
+$lastname_file = $call_id . "-lastname";
 
 // Build record in requested format (including file names)
 $record_line = "ID:$unique_id,";
