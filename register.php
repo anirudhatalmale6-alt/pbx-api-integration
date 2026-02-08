@@ -69,32 +69,19 @@ function sttFailed($value) {
 }
 
 // --- Function to get next ID ---
-// Uses a counter file to ensure IDs are always unique (never reused after deletion)
+// If all records are deleted, starts from ID001 again
 function getNextId($file_path) {
-    $counter_file = $file_path . '.counter';
-
-    // Read current counter
     $current_id = 0;
-    if (file_exists($counter_file)) {
-        $current_id = (int)file_get_contents($counter_file);
-    }
-
-    // Also check the data file for the max ID (in case counter was lost)
     if (file_exists($file_path)) {
-        $content = file_get_contents($file_path);
-        preg_match_all('/ID:ID(\d+),/', $content, $matches);
-        if (!empty($matches[1])) {
-            $max_in_file = max(array_map('intval', $matches[1]));
-            if ($max_in_file > $current_id) {
-                $current_id = $max_in_file;
+        $content = trim(file_get_contents($file_path));
+        if (!empty($content)) {
+            preg_match_all('/ID:ID(\d+),/', $content, $matches);
+            if (!empty($matches[1])) {
+                $current_id = max(array_map('intval', $matches[1]));
             }
         }
     }
-
-    // Increment and save
     $next_id = $current_id + 1;
-    file_put_contents($counter_file, $next_id, LOCK_EX);
-
     return 'ID' . str_pad($next_id, 3, '0', STR_PAD_LEFT);
 }
 
@@ -228,12 +215,14 @@ $unique_id = getNextId($save_file);
 $firstname_file = $call_id . "-firstname";
 $lastname_file = $call_id . "-lastname";
 
-// Build record in requested format (including file names)
+// Build record in requested format (including file names and date)
+$reg_date = date('Y-m-d H:i:s');
 $record_line = "ID:$unique_id,";
 $record_line .= "מספר נציג:$agent_num,";
 $record_line .= "שם פרטי:$first_name,";
 $record_line .= "שם משפחה:$last_name,";
 $record_line .= "טלפון:$phone_num,";
+$record_line .= "תאריך:$reg_date,";
 $record_line .= "קובץ שם פרטי:$firstname_file,";
 $record_line .= "קובץ שם משפחה:$lastname_file\n";
 

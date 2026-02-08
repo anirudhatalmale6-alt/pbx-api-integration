@@ -82,6 +82,7 @@ function parseRecord($line) {
                 case 'שם פרטי': $record['first_name'] = $value; break;
                 case 'שם משפחה': $record['last_name'] = $value; break;
                 case 'טלפון': $record['phone'] = $value; break;
+                case 'תאריך': $record['reg_date'] = $value; break;
                 case 'קובץ שם פרטי': $record['file_firstname'] = $value; break;
                 case 'קובץ שם משפחה': $record['file_lastname'] = $value; break;
             }
@@ -208,6 +209,7 @@ function exportToExcel($file) {
     $xml .= '<Cell><Data ss:Type="String">שם פרטי</Data></Cell>' . "\n";
     $xml .= '<Cell><Data ss:Type="String">שם משפחה</Data></Cell>' . "\n";
     $xml .= '<Cell><Data ss:Type="String">טלפון</Data></Cell>' . "\n";
+    $xml .= '<Cell><Data ss:Type="String">תאריך</Data></Cell>' . "\n";
     $xml .= '</Row>' . "\n";
 
     // Data rows
@@ -218,6 +220,7 @@ function exportToExcel($file) {
         $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['first_name'] ?? '') . '</Data></Cell>' . "\n";
         $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['last_name'] ?? '') . '</Data></Cell>' . "\n";
         $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['phone'] ?? '') . '</Data></Cell>' . "\n";
+        $xml .= '<Cell><Data ss:Type="String">' . htmlspecialchars($row['reg_date'] ?? '') . '</Data></Cell>' . "\n";
         $xml .= '</Row>' . "\n";
     }
 
@@ -414,6 +417,7 @@ function exportToExcel($file) {
                             <th>שם פרטי</th>
                             <th>שם משפחה</th>
                             <th>טלפון</th>
+                            <th>תאריך</th>
                             <th>פעולות</th>
                         </tr>
                         <tr class="search-row">
@@ -423,12 +427,13 @@ function exportToExcel($file) {
                             <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchFirstName"></th>
                             <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchLastName"></th>
                             <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchPhone"></th>
+                            <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchDate"></th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
                         <tr>
-                            <td colspan="7" class="empty-state">טוען נתונים...</td>
+                            <td colspan="8" class="empty-state">טוען נתונים...</td>
                         </tr>
                     </tbody>
                 </table>
@@ -532,13 +537,15 @@ function exportToExcel($file) {
             var sFirst = document.getElementById('searchFirstName').value.toLowerCase();
             var sLast = document.getElementById('searchLastName').value.toLowerCase();
             var sPhone = document.getElementById('searchPhone').value.toLowerCase();
+            var sDate = document.getElementById('searchDate').value.toLowerCase();
 
             filteredData = allData.filter(function(row) {
                 return (!sId || (row.id || '').toLowerCase().indexOf(sId) !== -1) &&
                        (!sAgent || (row.agent_num || '').toLowerCase().indexOf(sAgent) !== -1) &&
                        (!sFirst || (row.first_name || '').toLowerCase().indexOf(sFirst) !== -1) &&
                        (!sLast || (row.last_name || '').toLowerCase().indexOf(sLast) !== -1) &&
-                       (!sPhone || (row.phone || '').toLowerCase().indexOf(sPhone) !== -1);
+                       (!sPhone || (row.phone || '').toLowerCase().indexOf(sPhone) !== -1) &&
+                       (!sDate || (row.reg_date || '').toLowerCase().indexOf(sDate) !== -1);
             });
 
             currentPage = 1;
@@ -549,7 +556,7 @@ function exportToExcel($file) {
         function renderTable() {
             var tbody = document.getElementById('tableBody');
             if (filteredData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">אין נציגים רשומים</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state">אין נציגים רשומים</td></tr>';
                 return;
             }
 
@@ -567,6 +574,7 @@ function exportToExcel($file) {
                     '<td>' + (row.first_name || '') + '</td>' +
                     '<td>' + (row.last_name || '') + '</td>' +
                     '<td>' + (row.phone || '') + '</td>' +
+                    '<td>' + (row.reg_date || '') + '</td>' +
                     '<td class="actions">' +
                         '<button class="btn btn-edit" onclick="openEdit(\'' + row.id + '\', \'' + row.agent_num + '\', \'' + row.first_name + '\', \'' + row.last_name + '\', \'' + row.phone + '\')">עריכה</button>' +
                         '<button class="btn btn-delete" onclick="openDelete(\'' + row.id + '\', \'' + row.first_name + ' ' + row.last_name + '\')">מחיקה</button>' +
