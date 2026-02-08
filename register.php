@@ -165,8 +165,8 @@ if (!isset($_GET['checked'])) {
 // Generate unique ID once we have checked (based on current file content)
 $unique_id = getNextId($save_file);
 
-// Generate date/time stamp for filenames (format: YYYYMMDD-HHMMSS)
-$datetime_stamp = date('Ymd-His');
+// Use call_id as unique suffix (consistent across all steps of the same call)
+$call_suffix = $call_id;
 
 // --- Step 2: Record first name with STT (Speech-to-Text) ---
 if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
@@ -175,7 +175,7 @@ if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
         "name" => "first_name",
         "min" => 1,
         "max" => 10,
-        "fileName" => $unique_id . "-" . $datetime_stamp . "-firstname",
+        "fileName" => $unique_id . "-" . $call_suffix . "-firstname",
         "saveFolder" => $recordings_folder,
         "files" => [
             ["fileName" => "004", "extensionId" => "7929"]
@@ -192,7 +192,7 @@ if (!isset($_GET['last_name']) || sttFailed($_GET['last_name'])) {
         "name" => "last_name",
         "min" => 1,
         "max" => 10,
-        "fileName" => $unique_id . "-" . $datetime_stamp . "-lastname",
+        "fileName" => $unique_id . "-" . $call_suffix . "-lastname",
         "saveFolder" => $recordings_folder,
         "files" => [
             ["fileName" => "005", "extensionId" => "7929"]
@@ -227,9 +227,9 @@ $last_name  = $_GET['last_name'] ?? '';   // STT returns the transcribed text
 $phone_num  = $_GET['phone_num'] ?? '';
 $caller_phone = $phone;
 
-// Build file names for recordings (with date/time)
-$firstname_file = $unique_id . "-" . $datetime_stamp . "-firstname";
-$lastname_file = $unique_id . "-" . $datetime_stamp . "-lastname";
+// Build file names for recordings (with call_id)
+$firstname_file = $unique_id . "-" . $call_suffix . "-firstname";
+$lastname_file = $unique_id . "-" . $call_suffix . "-lastname";
 
 // Build record in requested format (including file names)
 $record_line = "ID:$unique_id,";
