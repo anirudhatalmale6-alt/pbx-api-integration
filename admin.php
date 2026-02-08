@@ -724,8 +724,10 @@ function exportToExcel($file) {
 
         function openAudio(id, name) {
             document.getElementById('audioAgentName').textContent = name;
-            document.getElementById('audioFirstName').src = '?action=get_audio&filename=' + id + '-firstname';
-            document.getElementById('audioLastName').src = '?action=get_audio&filename=' + id + '-lastname';
+            // Add timestamp to prevent caching
+            var ts = new Date().getTime();
+            document.getElementById('audioFirstName').src = '?action=get_audio&filename=' + id + '-firstname&t=' + ts;
+            document.getElementById('audioLastName').src = '?action=get_audio&filename=' + id + '-lastname&t=' + ts;
             document.getElementById('audioModal').classList.add('active');
         }
 
