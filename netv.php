@@ -68,7 +68,7 @@ function getData($file) {
 }
 
 function parseRecord($line) {
-    // Format: ID:ID001,מספר נציג:1234,שם פרטי:משה,שם משפחה:כהן,טלפון:0501234567
+    // Format: ID:ID001,מספר נציג:1234,שם פרטי:משה,שם משפחה:כהן,טלפון:0501234567,קובץ שם פרטי:...,קובץ שם משפחה:...
     $parts = explode(',', $line);
     $record = [];
     foreach ($parts as $part) {
@@ -82,6 +82,8 @@ function parseRecord($line) {
                 case 'שם פרטי': $record['first_name'] = $value; break;
                 case 'שם משפחה': $record['last_name'] = $value; break;
                 case 'טלפון': $record['phone'] = $value; break;
+                case 'קובץ שם פרטי': $record['file_firstname'] = $value; break;
+                case 'קובץ שם משפחה': $record['file_lastname'] = $value; break;
             }
         }
     }
@@ -241,27 +243,15 @@ function exportToExcel($file) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ניהול נציגים</title>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
             min-height: 100vh;
             padding: 20px;
         }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-        h1 {
-            color: white;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2em;
-        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: white; text-align: center; margin-bottom: 30px; font-size: 2em; }
         .card {
             background: white;
             border-radius: 15px;
@@ -274,39 +264,41 @@ function exportToExcel($file) {
             padding: 20px;
             font-size: 1.2em;
             font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
-        .header-actions {
-            display: flex;
-            gap: 10px;
+        .table-wrapper {
+            max-height: 70vh;
+            overflow-y: auto;
         }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+        table { width: 100%; border-collapse: collapse; }
         th, td {
-            padding: 15px;
+            padding: 12px 15px;
             text-align: right;
             border-bottom: 1px solid #eee;
+        }
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
         th {
             background: #f8f9fa;
             font-weight: bold;
             color: #333;
         }
-        tr:hover {
-            background: #f5f5f5;
+        .search-row th {
+            background: #eef2f7;
+            padding: 5px 8px;
         }
-        tr.selected {
-            background: #e3f2fd;
+        .search-row input {
+            width: 100%;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
         }
-        .actions {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-        }
+        tr:hover { background: #f5f5f5; }
+        tr.selected { background: #e3f2fd; }
+        .actions { display: flex; gap: 8px; justify-content: center; }
         .btn {
             padding: 8px 15px;
             border: none;
@@ -315,152 +307,77 @@ function exportToExcel($file) {
             font-size: 14px;
             transition: all 0.3s;
         }
-        .btn-edit {
-            background: #4fb3d9;
-            color: white;
-        }
-        .btn-edit:hover {
-            background: #3a9fc5;
-        }
-        .btn-delete {
-            background: #e74c3c;
-            color: white;
-        }
-        .btn-delete:hover {
-            background: #c0392b;
-        }
-        .btn-play {
-            background: #27ae60;
-            color: white;
-        }
-        .btn-play:hover {
-            background: #1e8449;
-        }
-        .btn-save {
-            background: #2ecc71;
-            color: white;
-        }
-        .btn-cancel {
-            background: #95a5a6;
-            color: white;
-        }
-        .btn-delete-selected {
-            background: #c0392b;
-            color: white;
-            display: none;
-        }
-        .btn-delete-selected.visible {
-            display: inline-block;
-        }
+        .btn-edit { background: #4fb3d9; color: white; }
+        .btn-edit:hover { background: #3a9fc5; }
+        .btn-delete { background: #e74c3c; color: white; }
+        .btn-delete:hover { background: #c0392b; }
+        .btn-play { background: #27ae60; color: white; }
+        .btn-play:hover { background: #1e8449; }
+        .btn-save { background: #2ecc71; color: white; }
+        .btn-cancel { background: #95a5a6; color: white; }
+        .btn-delete-selected { background: #c0392b; color: white; display: none; }
+        .btn-delete-selected.visible { display: inline-block; }
         .btn-export {
-            background: #27ae60;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            background: #27ae60; color: white;
+            padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;
         }
-        .btn-export:hover {
-            background: #1e8449;
-        }
+        .btn-export:hover { background: #1e8449; }
         .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
             background: rgba(0,0,0,0.5);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
+            justify-content: center; align-items: center; z-index: 1000;
         }
-        .modal.active {
-            display: flex;
-        }
+        .modal.active { display: flex; }
         .modal-content {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            width: 90%;
-            max-width: 500px;
+            background: white; border-radius: 15px;
+            padding: 30px; width: 90%; max-width: 500px;
         }
-        .modal-header {
-            font-size: 1.3em;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #1e3a5f;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
+        .modal-header { font-size: 1.3em; font-weight: bold; margin-bottom: 20px; color: #1e3a5f; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
         .form-group input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 16px;
+            width: 100%; padding: 10px;
+            border: 1px solid #ddd; border-radius: 5px; font-size: 16px;
         }
-        .modal-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            margin-top: 20px;
-        }
-        .audio-modal audio {
-            width: 100%;
-            margin: 20px 0;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 50px;
-            color: #666;
-        }
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
+        .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+        .audio-modal audio { width: 100%; margin: 20px 0; }
+        .empty-state { text-align: center; padding: 50px; color: #666; }
+        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
         .refresh-btn {
-            background: #1e3a5f;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            background: #1e3a5f; color: white;
+            padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;
         }
-        .audio-buttons {
-            display: flex;
-            gap: 10px;
-            flex-direction: column;
-        }
-        .checkbox-cell {
-            width: 40px;
-            text-align: center;
-        }
-        .checkbox-cell input {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
+        .audio-buttons { display: flex; gap: 10px; flex-direction: column; }
+        .checkbox-cell { width: 40px; text-align: center; }
+        .checkbox-cell input { width: 18px; height: 18px; cursor: pointer; }
         .selected-count {
-            color: white;
-            background: #e74c3c;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            display: none;
+            color: white; background: #e74c3c;
+            padding: 5px 15px; border-radius: 20px; font-size: 14px; display: none;
         }
-        .selected-count.visible {
-            display: inline-block;
+        .selected-count.visible { display: inline-block; }
+        /* Pagination */
+        .pagination {
+            display: flex; justify-content: center; align-items: center;
+            gap: 8px; padding: 15px; flex-wrap: wrap;
         }
+        .pagination button {
+            padding: 8px 14px; border: 1px solid #ddd;
+            background: white; border-radius: 5px; cursor: pointer; font-size: 14px;
+        }
+        .pagination button.active {
+            background: #4fb3d9; color: white; border-color: #4fb3d9;
+        }
+        .pagination button:hover:not(.active) { background: #f0f0f0; }
+        .pagination button:disabled { opacity: 0.5; cursor: default; }
+        .page-size-selector {
+            display: flex; align-items: center; gap: 5px;
+        }
+        .page-size-selector select {
+            padding: 8px; border: 1px solid #ddd;
+            border-radius: 5px; font-size: 14px;
+        }
+        .page-info { color: #666; font-size: 14px; padding: 0 10px; }
     </style>
 </head>
 <body>
@@ -468,34 +385,55 @@ function exportToExcel($file) {
         <h1>ניהול נציגים</h1>
 
         <div class="toolbar">
-            <button class="refresh-btn" onclick="loadData()">🔄 רענן נתונים</button>
-            <button class="btn btn-export" onclick="exportExcel()">📊 ייצוא לאקסל</button>
-            <button class="btn btn-delete-selected" id="deleteSelectedBtn" onclick="openDeleteMultiple()">🗑️ מחק נבחרים</button>
+            <button class="refresh-btn" onclick="loadData()">רענן נתונים</button>
+            <button class="btn btn-export" onclick="exportExcel()">ייצוא לאקסל</button>
+            <button class="btn btn-delete-selected" id="deleteSelectedBtn" onclick="openDeleteMultiple()">מחק נבחרים</button>
             <span class="selected-count" id="selectedCount">נבחרו: 0</span>
+            <div class="page-size-selector" style="margin-right:auto;">
+                <label>שורות בדף:</label>
+                <select id="pageSizeSelect" onchange="changePageSize()">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
         </div>
 
         <div class="card">
             <div class="card-header">
                 <span>רשימת נציגים רשומים</span>
             </div>
-            <table id="agentsTable">
-                <thead>
-                    <tr>
-                        <th class="checkbox-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
-                        <th>ID</th>
-                        <th>מספר נציג</th>
-                        <th>שם פרטי</th>
-                        <th>שם משפחה</th>
-                        <th>טלפון</th>
-                        <th>פעולות</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <tr>
-                        <td colspan="7" class="empty-state">טוען נתונים...</td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="table-wrapper">
+                <table id="agentsTable">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"><input type="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                            <th>ID</th>
+                            <th>מספר נציג</th>
+                            <th>שם פרטי</th>
+                            <th>שם משפחה</th>
+                            <th>טלפון</th>
+                            <th>פעולות</th>
+                        </tr>
+                        <tr class="search-row">
+                            <th></th>
+                            <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchId"></th>
+                            <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchAgentNum"></th>
+                            <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchFirstName"></th>
+                            <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchLastName"></th>
+                            <th><input type="text" placeholder="חיפוש..." oninput="filterData()" id="searchPhone"></th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="7" class="empty-state">טוען נתונים...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination" id="pagination"></div>
         </div>
     </div>
 
@@ -573,68 +511,136 @@ function exportToExcel($file) {
     </div>
 
     <script>
+        let allData = [];
+        let filteredData = [];
         let selectedIds = [];
+        let currentPage = 1;
+        let pageSize = 10;
 
         function loadData() {
             fetch('?action=get_data')
                 .then(res => res.json())
                 .then(data => {
-                    const tbody = document.getElementById('tableBody');
-                    if (data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">אין נציגים רשומים</td></tr>';
-                        return;
-                    }
-                    tbody.innerHTML = data.map(row => `
-                        <tr data-id="${row.id}">
-                            <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" value="${row.id}" onchange="updateSelection()"></td>
-                            <td>${row.id || ''}</td>
-                            <td>${row.agent_num || ''}</td>
-                            <td>${row.first_name || ''}</td>
-                            <td>${row.last_name || ''}</td>
-                            <td>${row.phone || ''}</td>
-                            <td class="actions">
-                                <button class="btn btn-edit" onclick="openEdit('${row.id}', '${row.agent_num}', '${row.first_name}', '${row.last_name}', '${row.phone}')">✏️ עריכה</button>
-                                <button class="btn btn-delete" onclick="openDelete('${row.id}', '${row.first_name} ${row.last_name}')">🗑️ מחיקה</button>
-                                <button class="btn btn-play" onclick="openAudio('${row.id}', '${row.first_name} ${row.last_name}')">🔊 השמעה</button>
-                            </td>
-                        </tr>
-                    `).join('');
-                    selectedIds = [];
-                    updateSelectionUI();
+                    allData = data;
+                    filterData();
                 });
         }
 
-        function toggleSelectAll() {
-            const selectAll = document.getElementById('selectAll').checked;
-            document.querySelectorAll('.row-checkbox').forEach(cb => {
-                cb.checked = selectAll;
-                const row = cb.closest('tr');
-                if (selectAll) {
-                    row.classList.add('selected');
-                } else {
-                    row.classList.remove('selected');
+        function filterData() {
+            var sId = document.getElementById('searchId').value.toLowerCase();
+            var sAgent = document.getElementById('searchAgentNum').value.toLowerCase();
+            var sFirst = document.getElementById('searchFirstName').value.toLowerCase();
+            var sLast = document.getElementById('searchLastName').value.toLowerCase();
+            var sPhone = document.getElementById('searchPhone').value.toLowerCase();
+
+            filteredData = allData.filter(function(row) {
+                return (!sId || (row.id || '').toLowerCase().indexOf(sId) !== -1) &&
+                       (!sAgent || (row.agent_num || '').toLowerCase().indexOf(sAgent) !== -1) &&
+                       (!sFirst || (row.first_name || '').toLowerCase().indexOf(sFirst) !== -1) &&
+                       (!sLast || (row.last_name || '').toLowerCase().indexOf(sLast) !== -1) &&
+                       (!sPhone || (row.phone || '').toLowerCase().indexOf(sPhone) !== -1);
+            });
+
+            currentPage = 1;
+            renderTable();
+            renderPagination();
+        }
+
+        function renderTable() {
+            var tbody = document.getElementById('tableBody');
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">אין נציגים רשומים</td></tr>';
+                return;
+            }
+
+            var start = (currentPage - 1) * pageSize;
+            var end = Math.min(start + pageSize, filteredData.length);
+            var pageData = filteredData.slice(start, end);
+
+            tbody.innerHTML = pageData.map(function(row) {
+                var fileFirst = row.file_firstname || (row.id + '-firstname');
+                var fileLast = row.file_lastname || (row.id + '-lastname');
+                return '<tr data-id="' + row.id + '">' +
+                    '<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" value="' + row.id + '" onchange="updateSelection()"></td>' +
+                    '<td>' + (row.id || '') + '</td>' +
+                    '<td>' + (row.agent_num || '') + '</td>' +
+                    '<td>' + (row.first_name || '') + '</td>' +
+                    '<td>' + (row.last_name || '') + '</td>' +
+                    '<td>' + (row.phone || '') + '</td>' +
+                    '<td class="actions">' +
+                        '<button class="btn btn-edit" onclick="openEdit(\'' + row.id + '\', \'' + row.agent_num + '\', \'' + row.first_name + '\', \'' + row.last_name + '\', \'' + row.phone + '\')">עריכה</button>' +
+                        '<button class="btn btn-delete" onclick="openDelete(\'' + row.id + '\', \'' + row.first_name + ' ' + row.last_name + '\')">מחיקה</button>' +
+                        '<button class="btn btn-play" onclick="openAudio(\'' + fileFirst + '\', \'' + fileLast + '\', \'' + row.first_name + ' ' + row.last_name + '\')">השמעה</button>' +
+                    '</td></tr>';
+            }).join('');
+
+            selectedIds = [];
+            updateSelectionUI();
+        }
+
+        function renderPagination() {
+            var totalPages = Math.ceil(filteredData.length / pageSize);
+            var pag = document.getElementById('pagination');
+            if (totalPages <= 1) {
+                pag.innerHTML = '<span class="page-info">סה"כ: ' + filteredData.length + ' רשומות</span>';
+                return;
+            }
+            var html = '';
+            html += '<button ' + (currentPage === 1 ? 'disabled' : '') + ' onclick="goToPage(' + (currentPage - 1) + ')">הקודם</button>';
+            for (var i = 1; i <= totalPages; i++) {
+                if (totalPages > 7 && i > 3 && i < totalPages - 2 && Math.abs(i - currentPage) > 1) {
+                    if (i === 4 || i === totalPages - 3) html += '<button disabled>...</button>';
+                    continue;
                 }
+                html += '<button class="' + (i === currentPage ? 'active' : '') + '" onclick="goToPage(' + i + ')">' + i + '</button>';
+            }
+            html += '<button ' + (currentPage === totalPages ? 'disabled' : '') + ' onclick="goToPage(' + (currentPage + 1) + ')">הבא</button>';
+            html += '<span class="page-info">סה"כ: ' + filteredData.length + ' רשומות</span>';
+            pag.innerHTML = html;
+        }
+
+        function goToPage(page) {
+            var totalPages = Math.ceil(filteredData.length / pageSize);
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            renderTable();
+            renderPagination();
+        }
+
+        function changePageSize() {
+            pageSize = parseInt(document.getElementById('pageSizeSelect').value);
+            currentPage = 1;
+            renderTable();
+            renderPagination();
+        }
+
+        function toggleSelectAll() {
+            var selectAll = document.getElementById('selectAll').checked;
+            document.querySelectorAll('.row-checkbox').forEach(function(cb) {
+                cb.checked = selectAll;
+                var row = cb.closest('tr');
+                if (selectAll) row.classList.add('selected');
+                else row.classList.remove('selected');
             });
             updateSelection();
         }
 
         function updateSelection() {
             selectedIds = [];
-            document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
+            document.querySelectorAll('.row-checkbox:checked').forEach(function(cb) {
                 selectedIds.push(cb.value);
                 cb.closest('tr').classList.add('selected');
             });
-            document.querySelectorAll('.row-checkbox:not(:checked)').forEach(cb => {
+            document.querySelectorAll('.row-checkbox:not(:checked)').forEach(function(cb) {
                 cb.closest('tr').classList.remove('selected');
             });
             updateSelectionUI();
         }
 
         function updateSelectionUI() {
-            const count = selectedIds.length;
-            const deleteBtn = document.getElementById('deleteSelectedBtn');
-            const countSpan = document.getElementById('selectedCount');
-
+            var count = selectedIds.length;
+            var deleteBtn = document.getElementById('deleteSelectedBtn');
+            var countSpan = document.getElementById('selectedCount');
             if (count > 0) {
                 deleteBtn.classList.add('visible');
                 countSpan.classList.add('visible');
@@ -652,15 +658,11 @@ function exportToExcel($file) {
         }
 
         function confirmDeleteMultiple() {
-            const formData = new FormData();
+            var formData = new FormData();
             formData.append('ids', JSON.stringify(selectedIds));
-
-            fetch('?action=delete_multiple', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(result => {
+            fetch('?action=delete_multiple', { method: 'POST', body: formData })
+            .then(function(res) { return res.json(); })
+            .then(function(result) {
                 if (result.success) {
                     closeModal('deleteMultipleModal');
                     document.getElementById('selectAll').checked = false;
@@ -681,25 +683,17 @@ function exportToExcel($file) {
         }
 
         function saveEdit() {
-            const formData = new FormData();
+            var formData = new FormData();
             formData.append('id', document.getElementById('editId').value);
             formData.append('agent_num', document.getElementById('editAgentNum').value);
             formData.append('first_name', document.getElementById('editFirstName').value);
             formData.append('last_name', document.getElementById('editLastName').value);
             formData.append('phone', document.getElementById('editPhone').value);
-
-            fetch('?action=update', {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(result => {
-                if (result.success) {
-                    closeModal('editModal');
-                    loadData();
-                } else {
-                    alert('שגיאה בעדכון: ' + result.message);
-                }
+            fetch('?action=update', { method: 'POST', body: formData })
+            .then(function(res) { return res.json(); })
+            .then(function(result) {
+                if (result.success) { closeModal('editModal'); loadData(); }
+                else { alert('שגיאה בעדכון: ' + result.message); }
             });
         }
 
@@ -710,43 +704,34 @@ function exportToExcel($file) {
         }
 
         function confirmDelete() {
-            const id = document.getElementById('deleteId').value;
+            var id = document.getElementById('deleteId').value;
             fetch('?action=delete&id=' + encodeURIComponent(id))
-                .then(res => res.json())
-                .then(result => {
-                    if (result.success) {
-                        closeModal('deleteModal');
-                        loadData();
-                    } else {
-                        alert('שגיאה במחיקה: ' + result.message);
-                    }
+                .then(function(res) { return res.json(); })
+                .then(function(result) {
+                    if (result.success) { closeModal('deleteModal'); loadData(); }
+                    else { alert('שגיאה במחיקה: ' + result.message); }
                 });
         }
 
-        function openAudio(id, name) {
+        function openAudio(fileFirst, fileLast, name) {
             document.getElementById('audioAgentName').textContent = name;
-            // Add timestamp to prevent caching
             var ts = new Date().getTime();
-            document.getElementById('audioFirstName').src = '?action=get_audio&filename=' + id + '-firstname&t=' + ts;
-            document.getElementById('audioLastName').src = '?action=get_audio&filename=' + id + '-lastname&t=' + ts;
+            document.getElementById('audioFirstName').src = '?action=get_audio&filename=' + encodeURIComponent(fileFirst) + '&t=' + ts;
+            document.getElementById('audioLastName').src = '?action=get_audio&filename=' + encodeURIComponent(fileLast) + '&t=' + ts;
             document.getElementById('audioModal').classList.add('active');
         }
 
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
-            // Stop audio when closing
             if (modalId === 'audioModal') {
                 document.getElementById('audioFirstName').pause();
                 document.getElementById('audioLastName').pause();
             }
         }
 
-        // Close modal on outside click
-        document.querySelectorAll('.modal').forEach(modal => {
+        document.querySelectorAll('.modal').forEach(function(modal) {
             modal.addEventListener('click', function(e) {
-                if (e.target === this) {
-                    this.classList.remove('active');
-                }
+                if (e.target === this) this.classList.remove('active');
             });
         });
 
@@ -754,7 +739,6 @@ function exportToExcel($file) {
             window.location.href = '?action=export_excel';
         }
 
-        // Load data on page load
         loadData();
     </script>
 </body>
