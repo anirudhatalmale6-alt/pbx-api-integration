@@ -153,6 +153,18 @@ function numberToWords($num) {
     return implode(',', $words);
 }
 
+// --- Function to split number into individual digits separated by commas ---
+function digitsSeparated($num) {
+    $str = (string)$num;
+    $chars = [];
+    for ($i = 0; $i < strlen($str); $i++) {
+        if (is_numeric($str[$i])) {
+            $chars[] = $str[$i];
+        }
+    }
+    return implode(',', $chars);
+}
+
 $play_files = [];
 
 if ($lang === '2') {
@@ -172,24 +184,24 @@ if ($lang === '2') {
     if (!isset($_GET['nav'])) {
         $count = count($last_calls);
         $play_files[] = ["fileId" => "3", "extensionId" => ""];
-        $play_files[] = ["text" => "$count"];
+        $play_files[] = ["text" => digitsSeparated($count)];
         $play_files[] = ["fileId" => "4", "extensionId" => ""];
     }
     $play_files[] = ["fileId" => "5", "extensionId" => ""];
-    $play_files[] = ["text" => $data['src']];
+    $play_files[] = ["text" => digitsSeparated($data['src'])];
     $play_files[] = ["fileId" => "6", "extensionId" => ""];
-    $play_files[] = ["text" => "$minutes"];
+    $play_files[] = ["text" => digitsSeparated($minutes)];
     $play_files[] = ["fileId" => "7", "extensionId" => ""];
-    $play_files[] = ["text" => "$seconds"];
+    $play_files[] = ["text" => digitsSeparated($seconds)];
     $play_files[] = ["fileId" => "8", "extensionId" => ""];
     $play_files[] = ["fileId" => "9", "extensionId" => ""];
-    $play_files[] = ["text" => "$day"];
+    $play_files[] = ["text" => digitsSeparated($day)];
     $play_files[] = ["fileId" => "10", "extensionId" => ""];
-    $play_files[] = ["text" => "$month"];
+    $play_files[] = ["text" => digitsSeparated($month)];
     $play_files[] = ["fileId" => "11", "extensionId" => ""];
-    $play_files[] = ["text" => "$hour"];
+    $play_files[] = ["text" => digitsSeparated($hour)];
     $play_files[] = ["fileId" => "12", "extensionId" => ""];
-    $play_files[] = ["text" => "$minute"];
+    $play_files[] = ["text" => digitsSeparated($minute)];
     $play_files[] = ["fileId" => "13", "extensionId" => ""];
 }
 
