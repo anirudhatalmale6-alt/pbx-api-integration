@@ -93,7 +93,7 @@ if (!isset($_GET['agent_num'])) {
         "min" => 4,
         "max" => 4,
         "timeout" => 10,
-        "confirmType" => "digits",
+        "confirmType" => "text",
         "setMusic" => "yes",
         "files" => [
             ["fileName" => "001", "extensionId" => "7929"]
@@ -191,7 +191,7 @@ if (!isset($_GET['phone_num'])) {
         "min" => 9,
         "max" => 10,
         "timeout" => 15,
-        "confirmType" => "digits",
+        "confirmType" => "text",
         "setMusic" => "yes",
         "files" => [
             ["fileName" => "006", "extensionId" => "7929"]
