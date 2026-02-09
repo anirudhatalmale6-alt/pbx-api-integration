@@ -59,29 +59,7 @@ if ($lang === '*') {
     exit;
 }
 
-// --- Step 2: First entry - set navigation ---
-if (!isset($_GET['getList'])) {
-    $result = [
-        "type" => "simpleMenu",
-        "name" => "getList",
-        "times" => 1,
-        "timeout" => 1,
-        "enabledKeys" => "1,2,3,4,5,6,7,8,9,0,*,#",
-        "files" => [
-            ["text" => ($lang === '2') ? "Please wait" : "אנא המתינו"]
-        ]
-    ];
-    echo json_encode($result, JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// --- Handle exit from navigation ---
-if (isset($_GET['getList']) && $_GET['getList'] === '*') {
-    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// --- Step 3: Load saved data and navigate ---
+// --- Step 2: Load saved data and navigate ---
 $last_calls = [];
 if (file_exists("$call_id.call")) {
     $last_calls = json_decode(file_get_contents("$call_id.call"), true);
