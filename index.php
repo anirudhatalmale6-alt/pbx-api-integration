@@ -168,29 +168,31 @@ if ($lang === '2') {
     $play_files[] = ["text" => "Time: " . numberToWords($hour) . " and " . numberToWords($minute) . " minutes"];
     $play_files[] = ["text" => "For next call press 4, previous press 6, to exit press star"];
 } else {
-    // --- HEBREW: audio files, "digits" for phone/count, "text" for time ---
-    $count = count($last_calls);
+    // --- HEBREW: text for words, digits for numbers ---
     if (!isset($_GET['nav'])) {
-        $play_files[] = ["fileId" => "3", "extensionId" => ""];
+        $count = count($last_calls);
+        $play_files[] = ["text" => "יש לך"];
         $play_files[] = ["digits" => "$count"];
-        $play_files[] = ["fileId" => "4", "extensionId" => ""];
+        $play_files[] = ["text" => "שיחות"];
     }
-    $play_files[] = ["fileId" => "5", "extensionId" => ""];
+    $play_files[] = ["text" => "ממספר"];
     $play_files[] = ["digits" => $data['src']];
-    $play_files[] = ["fileId" => "6", "extensionId" => ""];
+    $play_files[] = ["text" => "משך שיחה"];
     $play_files[] = ["digits" => "$minutes"];
-    $play_files[] = ["fileId" => "7", "extensionId" => ""];
+    $play_files[] = ["text" => "דקות ו"];
     $play_files[] = ["digits" => "$seconds"];
-    $play_files[] = ["fileId" => "8", "extensionId" => ""];
-    $play_files[] = ["fileId" => "9", "extensionId" => ""];
+    $play_files[] = ["text" => "שניות"];
+    $play_files[] = ["text" => "תאריך"];
+    $play_files[] = ["text" => "יום"];
     $play_files[] = ["digits" => "$day"];
-    $play_files[] = ["fileId" => "10", "extensionId" => ""];
+    $play_files[] = ["text" => "חודש"];
     $play_files[] = ["digits" => "$month"];
-    $play_files[] = ["fileId" => "11", "extensionId" => ""];
+    $play_files[] = ["text" => "שעה"];
     $play_files[] = ["digits" => "$hour"];
-    $play_files[] = ["fileId" => "12", "extensionId" => ""];
+    $play_files[] = ["text" => "ו"];
     $play_files[] = ["digits" => "$minute"];
-    $play_files[] = ["fileId" => "13", "extensionId" => ""];
+    $play_files[] = ["text" => "דקות"];
+    $play_files[] = ["text" => "לשיחה הבאה הקישו 4, לשיחה הקודמת 6, ליציאה כוכבית"];
 }
 
 // --- Step 5: Navigation menu ---
