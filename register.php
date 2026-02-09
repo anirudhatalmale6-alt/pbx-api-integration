@@ -155,7 +155,7 @@ if (!isset($_GET['first_name']) || sttFailed($_GET['first_name'])) {
         "type" => "stt",
         "name" => "first_name",
         "min" => 1,
-        "max" => 10,
+        "max" => 3,
         "fileName" => $call_id . "-firstname",
         "saveFolder" => $recordings_folder,
         "files" => [
@@ -172,7 +172,7 @@ if (!isset($_GET['last_name']) || sttFailed($_GET['last_name'])) {
         "type" => "stt",
         "name" => "last_name",
         "min" => 1,
-        "max" => 10,
+        "max" => 3,
         "fileName" => $call_id . "-lastname",
         "saveFolder" => $recordings_folder,
         "files" => [
