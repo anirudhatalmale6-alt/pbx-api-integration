@@ -168,28 +168,28 @@ if ($lang === '2') {
     $play_files[] = ["text" => "Time: " . numberToWords($hour) . " and " . numberToWords($minute) . " minutes"];
     $play_files[] = ["text" => "For next call press 4, previous press 6, to exit press star"];
 } else {
-    // --- HEBREW: audio files + "number" for counts, "digits" for phone ---
+    // --- HEBREW: audio files, "digits" for phone, "text" for counts/time ---
     if (!isset($_GET['nav'])) {
         $count = count($last_calls);
         $play_files[] = ["fileId" => "3", "extensionId" => ""];
-        $play_files[] = ["number" => "$count"];
+        $play_files[] = ["text" => "$count"];
         $play_files[] = ["fileId" => "4", "extensionId" => ""];
     }
     $play_files[] = ["fileId" => "5", "extensionId" => ""];
     $play_files[] = ["digits" => $data['src']];
     $play_files[] = ["fileId" => "6", "extensionId" => ""];
-    $play_files[] = ["number" => "$minutes"];
+    $play_files[] = ["text" => "$minutes"];
     $play_files[] = ["fileId" => "7", "extensionId" => ""];
-    $play_files[] = ["number" => "$seconds"];
+    $play_files[] = ["text" => "$seconds"];
     $play_files[] = ["fileId" => "8", "extensionId" => ""];
     $play_files[] = ["fileId" => "9", "extensionId" => ""];
-    $play_files[] = ["number" => "$day"];
+    $play_files[] = ["text" => "$day"];
     $play_files[] = ["fileId" => "10", "extensionId" => ""];
-    $play_files[] = ["number" => "$month"];
+    $play_files[] = ["text" => "$month"];
     $play_files[] = ["fileId" => "11", "extensionId" => ""];
-    $play_files[] = ["number" => "$hour"];
+    $play_files[] = ["text" => "$hour"];
     $play_files[] = ["fileId" => "12", "extensionId" => ""];
-    $play_files[] = ["number" => "$minute"];
+    $play_files[] = ["text" => "$minute"];
     $play_files[] = ["fileId" => "13", "extensionId" => ""];
 }
 
