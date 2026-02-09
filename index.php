@@ -69,10 +69,17 @@ if (!is_array($last_calls)) {
 }
 
 // Calculate current position
+// Count nav=4 (next) and nav=6 (prev)
+// Timeout (nav= empty) counts as next (auto-advance)
 $query = $_SERVER['QUERY_STRING'] ?? '';
 $next_count = substr_count($query, 'nav=4');
 $prev_count = substr_count($query, 'nav=6');
-$hold = $next_count - $prev_count;
+// Count total nav params minus next/prev/exit = timeout auto-advances
+preg_match_all('/nav=/', $query, $all_nav);
+$total_nav = count($all_nav[0]);
+$star_count = substr_count($query, 'nav=*');
+$auto_next = $total_nav - $next_count - $prev_count - $star_count;
+$hold = ($next_count + $auto_next) - $prev_count;
 
 // --- No calls ---
 if (count($last_calls) < 1) {
@@ -177,8 +184,8 @@ if ($lang === '2') {
 $result = [
     "type" => "simpleMenu",
     "name" => "nav",
-    "times" => 3,
-    "timeout" => 5,
+    "times" => 1,
+    "timeout" => 1,
     "enabledKeys" => "0,4,6,*",
     "setMusic" => "no",
     "extensionChange" => ".",
