@@ -1,14 +1,14 @@
 <?php
 /**
  * PBX API Integration - Last Calls IVR
- * Converted from old CellStation format to new JSON-based PBX API
  *
  * Flow:
- * 1. First call -> fetch last calls from CellStation API, save to file
- * 2. Play intro message with call count
- * 3. Navigate through calls with keys (4=next, 6=previous, *=exit)
- * 4. For each call: read source number, duration, date, time
- * 5. On hangup -> cleanup temp file
+ * 1. Intro: "שלום הגעתם לשירות מי התקשר אלי"
+ * 2. Language selection: Hebrew=1, English=2
+ * 3. Fetch last calls from CellStation API
+ * 4. Play call details in selected language
+ * 5. Navigate: 4=next, 6=previous, *=exit
+ * 6. On hangup -> cleanup temp file
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -21,50 +21,63 @@ $extension_id = $_GET['PBXextensionId'] ?? '';
 
 // --- Handle hangup ---
 if ($call_status === 'HANGUP') {
-    // Cleanup temp file
     if ($call_id && file_exists("$call_id.call")) {
         unlink("$call_id.call");
     }
     exit;
 }
 
-// --- Step 1: First call - fetch data from CellStation ---
-if (!isset($_GET['getList'])) {
-
+// --- Step 1: Language selection ---
+if (!isset($_GET['lang'])) {
+    // Fetch data from CellStation and save
     $apikey = 'SDd4567$ghjgfSA678@dfhhyASDS';
     $api_url = "https://cellstation.co.il/meser/last_calls.php?apikey=$apikey&cid=$phone";
-
-    // Fetch and save last calls data
     $response = file_get_contents($api_url);
     file_put_contents("$call_id.call", $response);
 
-    // Play intro file and get menu selection (simpleMenu to set getList)
+    // Play intro + language menu
+    $result = [
+        "type" => "simpleMenu",
+        "name" => "lang",
+        "times" => 2,
+        "timeout" => 5,
+        "enabledKeys" => "1,2,*",
+        "files" => [
+            ["text" => "שלום, הגעתם לשירות מי התקשר אלי."],
+            ["text" => "לעברית הקישו 1"],
+            ["text" => "For English press 2"]
+        ]
+    ];
+    echo json_encode($result, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// --- Handle exit (* key) ---
+$lang = $_GET['lang'] ?? '1';
+if ($lang === '*') {
+    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// --- Step 2: First entry - set navigation ---
+if (!isset($_GET['getList'])) {
     $result = [
         "type" => "simpleMenu",
         "name" => "getList",
         "times" => 1,
         "timeout" => 1,
         "enabledKeys" => "1,2,3,4,5,6,7,8,9,0,*,#",
-        "setMusic" => "yes",
         "files" => [
-            [
-                "fileId" => "SSAA",
-                "extensionId" => ""
-            ]
+            ["text" => ($lang === '2') ? "Please wait" : "אנא המתינו"]
         ]
     ];
-
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// --- Step 2: Handle exit (* key) ---
+// --- Handle exit from navigation ---
 if (isset($_GET['getList']) && $_GET['getList'] === '*') {
-    $result = [
-        "type" => "goTo",
-        "goTo" => ".."
-    ];
-    echo json_encode($result, JSON_UNESCAPED_UNICODE);
+    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -73,63 +86,40 @@ $last_calls = [];
 if (file_exists("$call_id.call")) {
     $last_calls = json_decode(file_get_contents("$call_id.call"), true);
 }
-
 if (!is_array($last_calls)) {
     $last_calls = [];
 }
 
-// Calculate current position based on navigation keys
-// Key 4 = next, Key 6 = previous
+// Calculate current position
 $query = $_SERVER['QUERY_STRING'] ?? '';
 $next_count = substr_count($query, 'nav=4');
 $prev_count = substr_count($query, 'nav=6');
 $hold = $next_count - $prev_count;
 
-// --- Handle edge cases ---
+// --- No calls ---
 if (count($last_calls) < 1) {
-    // No calls - play "no calls" message and go back
+    $msg = ($lang === '2') ? "You have no missed calls" : "אין שיחות שלא נענו";
     $result = [
-        [
-            "type" => "audioPlayer",
-            "name" => "noData",
-            "files" => [
-                ["fileId" => "1", "extensionId" => ""]
-            ]
-        ],
-        [
-            "type" => "goTo",
-            "goTo" => ".."
-        ]
+        ["type" => "audioPlayer", "name" => "noData", "files" => [["text" => $msg]]],
+        ["type" => "goTo", "goTo" => ".."]
     ];
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
+// --- End of list ---
 if ($hold >= count($last_calls)) {
-    // End of list - play "no more calls" message and go back
+    $msg = ($lang === '2') ? "No more calls" : "אין עוד שיחות";
     $result = [
-        [
-            "type" => "audioPlayer",
-            "name" => "endList",
-            "files" => [
-                ["fileId" => "2", "extensionId" => ""]
-            ]
-        ],
-        [
-            "type" => "goTo",
-            "goTo" => ".."
-        ]
+        ["type" => "audioPlayer", "name" => "endList", "files" => [["text" => $msg]]],
+        ["type" => "goTo", "goTo" => ".."]
     ];
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 if ($hold < 0) {
-    $result = [
-        "type" => "goTo",
-        "goTo" => ".."
-    ];
-    echo json_encode($result, JSON_UNESCAPED_UNICODE);
+    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -149,38 +139,47 @@ $month   = $date_arr[1] + 0;
 $hour    = $time_arr[0] + 0;
 $minute  = $time_arr[1] + 0;
 
-// Build files array for playback
 $play_files = [];
 
-// If first entry, play count intro
-if (!isset($_GET['nav'])) {
-    $count = count($last_calls);
-    // "You have X calls" intro
-    $play_files[] = ["fileId" => "3", "extensionId" => ""];       // "You have"
-    $play_files[] = ["text" => "$count"];                           // number of calls
-    $play_files[] = ["fileId" => "4", "extensionId" => ""];       // "calls"
+if ($lang === '2') {
+    // --- ENGLISH: All text ---
+    if (!isset($_GET['nav'])) {
+        $count = count($last_calls);
+        $play_files[] = ["text" => "You have $count calls"];
+    }
+    $play_files[] = ["text" => "From number"];
+    $play_files[] = ["text" => $data['src']];
+    $play_files[] = ["text" => "Duration $minutes minutes and $seconds seconds"];
+    $play_files[] = ["text" => "Date: day $day, month $month"];
+    $play_files[] = ["text" => "Time: $hour and $minute minutes"];
+    $play_files[] = ["text" => "For next call press 4, previous press 6, to exit press star"];
+} else {
+    // --- HEBREW: Using audio files ---
+    if (!isset($_GET['nav'])) {
+        $count = count($last_calls);
+        $play_files[] = ["fileId" => "3", "extensionId" => ""];
+        $play_files[] = ["text" => "$count"];
+        $play_files[] = ["fileId" => "4", "extensionId" => ""];
+    }
+    $play_files[] = ["fileId" => "5", "extensionId" => ""];
+    $play_files[] = ["text" => $data['src']];
+    $play_files[] = ["fileId" => "6", "extensionId" => ""];
+    $play_files[] = ["text" => "$minutes"];
+    $play_files[] = ["fileId" => "7", "extensionId" => ""];
+    $play_files[] = ["text" => "$seconds"];
+    $play_files[] = ["fileId" => "8", "extensionId" => ""];
+    $play_files[] = ["fileId" => "9", "extensionId" => ""];
+    $play_files[] = ["text" => "$day"];
+    $play_files[] = ["fileId" => "10", "extensionId" => ""];
+    $play_files[] = ["text" => "$month"];
+    $play_files[] = ["fileId" => "11", "extensionId" => ""];
+    $play_files[] = ["text" => "$hour"];
+    $play_files[] = ["fileId" => "12", "extensionId" => ""];
+    $play_files[] = ["text" => "$minute"];
+    $play_files[] = ["fileId" => "13", "extensionId" => ""];
 }
 
-// Call details:
-$play_files[] = ["fileId" => "5", "extensionId" => ""];           // "From number"
-$play_files[] = ["text" => $data['src']];                          // source phone number
-$play_files[] = ["fileId" => "6", "extensionId" => ""];           // "Duration"
-$play_files[] = ["text" => "$minutes"];                            // minutes
-$play_files[] = ["fileId" => "7", "extensionId" => ""];           // "minutes and"
-$play_files[] = ["text" => "$seconds"];                            // seconds
-$play_files[] = ["fileId" => "8", "extensionId" => ""];           // "seconds"
-$play_files[] = ["fileId" => "9", "extensionId" => ""];           // "Date"
-$play_files[] = ["text" => "$day"];                                // day
-$play_files[] = ["fileId" => "10", "extensionId" => ""];          // "month"
-$play_files[] = ["text" => "$month"];                              // month number
-$play_files[] = ["fileId" => "11", "extensionId" => ""];          // "Hour"
-$play_files[] = ["text" => "$hour"];                               // hour
-$play_files[] = ["fileId" => "12", "extensionId" => ""];          // "and"
-$play_files[] = ["text" => "$minute"];                             // minute
-$play_files[] = ["fileId" => "13", "extensionId" => ""];          // closing message
-
-// --- Step 5: Play call info + navigation menu ---
-// After playing, present menu: 4=next call, 6=previous call, *=exit
+// --- Step 5: Navigation menu ---
 $result = [
     "type" => "simpleMenu",
     "name" => "nav",
