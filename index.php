@@ -153,11 +153,10 @@ function numberToWords($num) {
     return implode(',', $words);
 }
 
-
 $play_files = [];
 
 if ($lang === '2') {
-    // --- ENGLISH: All text, numbers as digit words ---
+    // --- ENGLISH: All text, numbers as English digit words ---
     if (!isset($_GET['nav'])) {
         $count = count($last_calls);
         $play_files[] = ["text" => "You have " . numberToWords($count) . " calls"];
