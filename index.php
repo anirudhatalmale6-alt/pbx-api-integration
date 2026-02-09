@@ -139,19 +139,33 @@ $month   = $date_arr[1] + 0;
 $hour    = $time_arr[0] + 0;
 $minute  = $time_arr[1] + 0;
 
+// --- Function to convert number to English digit words separated by commas ---
+function numberToWords($num) {
+    $digits = ['zero','one','two','three','four','five','six','seven','eight','nine'];
+    $str = (string)$num;
+    $words = [];
+    for ($i = 0; $i < strlen($str); $i++) {
+        $ch = $str[$i];
+        if (is_numeric($ch)) {
+            $words[] = $digits[(int)$ch];
+        }
+    }
+    return implode(',', $words);
+}
+
 $play_files = [];
 
 if ($lang === '2') {
-    // --- ENGLISH: All text ---
+    // --- ENGLISH: All text, numbers as digit words ---
     if (!isset($_GET['nav'])) {
         $count = count($last_calls);
-        $play_files[] = ["text" => "You have $count calls"];
+        $play_files[] = ["text" => "You have " . numberToWords($count) . " calls"];
     }
     $play_files[] = ["text" => "From number"];
-    $play_files[] = ["text" => $data['src']];
-    $play_files[] = ["text" => "Duration $minutes minutes and $seconds seconds"];
-    $play_files[] = ["text" => "Date: day $day, month $month"];
-    $play_files[] = ["text" => "Time: $hour and $minute minutes"];
+    $play_files[] = ["text" => numberToWords($data['src'])];
+    $play_files[] = ["text" => "Duration " . numberToWords($minutes) . " minutes and " . numberToWords($seconds) . " seconds"];
+    $play_files[] = ["text" => "Date: day " . numberToWords($day) . ", month " . numberToWords($month)];
+    $play_files[] = ["text" => "Time: " . numberToWords($hour) . " and " . numberToWords($minute) . " minutes"];
     $play_files[] = ["text" => "For next call press 4, previous press 6, to exit press star"];
 } else {
     // --- HEBREW: Using audio files ---
