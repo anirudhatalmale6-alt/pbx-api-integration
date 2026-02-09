@@ -114,12 +114,35 @@ function buildCallFiles($data, $lang) {
     $hour    = $time_arr[0] + 0;
     $minute  = $time_arr[1] + 0;
 
+    // English month names
+    $month_names = ['','January','February','March','April','May','June','July','August','September','October','November','December'];
+    // English ordinal days
+    $ordinals = ['','first','second','third','fourth','fifth','sixth','seventh','eighth','ninth','tenth',
+        'eleventh','twelfth','thirteenth','fourteenth','fifteenth','sixteenth','seventeenth','eighteenth','nineteenth','twentieth',
+        'twenty first','twenty second','twenty third','twenty fourth','twenty fifth','twenty sixth','twenty seventh','twenty eighth','twenty ninth','thirtieth','thirty first'];
+    // English hour words
+    $hour_words = ['twelve','one','two','three','four','five','six','seven','eight','nine','ten','eleven',
+        'twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty',
+        'twenty one','twenty two','twenty three'];
+    // English minute words
+    $min_words = ['','one','two','three','four','five','six','seven','eight','nine','ten',
+        'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty',
+        'twenty one','twenty two','twenty three','twenty four','twenty five','twenty six','twenty seven','twenty eight','twenty nine','thirty',
+        'thirty one','thirty two','thirty three','thirty four','thirty five','thirty six','thirty seven','thirty eight','thirty nine','forty',
+        'forty one','forty two','forty three','forty four','forty five','forty six','forty seven','forty eight','forty nine','fifty',
+        'fifty one','fifty two','fifty three','fifty four','fifty five','fifty six','fifty seven','fifty eight','fifty nine'];
+
     $files = [];
     if ($lang === '2') {
+        $month_name = $month_names[$month] ?? "$month";
+        $day_ord = $ordinals[$day] ?? "$day";
+        $hour_word = $hour_words[$hour] ?? "$hour";
+        $min_word = ($minute == 0) ? "o'clock" : ($min_words[$minute] ?? "$minute");
+
         $files[] = ["text" => "From number"];
         $files[] = ["text" => numberToWords($data['src'])];
         $files[] = ["text" => "Duration " . numberToWords($minutes) . " minutes and " . numberToWords($seconds) . " seconds"];
-        $files[] = ["text" => "On $day $month at $hour $minute"];
+        $files[] = ["text" => "$month_name $day_ord, $hour_word $min_word"];
     } else {
         $files[] = ["text" => "ממספר"];
         $files[] = ["digits" => $data['src']];
