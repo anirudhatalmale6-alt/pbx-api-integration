@@ -141,7 +141,7 @@ function numberToWords($num) {
 $play_files = [];
 
 if ($lang === '2') {
-    // --- ENGLISH: All text, numbers as English digit words ---
+    // --- ENGLISH: All text ---
     if (!isset($_GET['nav'])) {
         $count = count($last_calls);
         $play_files[] = ["text" => "You have " . numberToWords($count) . " calls"];
@@ -149,11 +149,9 @@ if ($lang === '2') {
     $play_files[] = ["text" => "From number"];
     $play_files[] = ["text" => numberToWords($data['src'])];
     $play_files[] = ["text" => "Duration " . numberToWords($minutes) . " minutes and " . numberToWords($seconds) . " seconds"];
-    $play_files[] = ["text" => "Date: day " . numberToWords($day) . ", month " . numberToWords($month)];
-    $play_files[] = ["text" => "Time: " . numberToWords($hour) . " and " . numberToWords($minute) . " minutes"];
-    $play_files[] = ["text" => "For next call press 4, previous press 6, to exit press star"];
+    $play_files[] = ["text" => "On $day $month at $hour $minute"];
 } else {
-    // --- HEBREW: text for words, digits for numbers ---
+    // --- HEBREW: text for words, digits for phone, text for date/time ---
     if (!isset($_GET['nav'])) {
         $count = count($last_calls);
         $play_files[] = ["text" => "יש לך"];
@@ -167,17 +165,7 @@ if ($lang === '2') {
     $play_files[] = ["text" => "דקות ו"];
     $play_files[] = ["digits" => "$seconds"];
     $play_files[] = ["text" => "שניות"];
-    $play_files[] = ["text" => "תאריך"];
-    $play_files[] = ["text" => "יום"];
-    $play_files[] = ["digits" => "$day"];
-    $play_files[] = ["text" => "חודש"];
-    $play_files[] = ["digits" => "$month"];
-    $play_files[] = ["text" => "שעה"];
-    $play_files[] = ["digits" => "$hour"];
-    $play_files[] = ["text" => "ו"];
-    $play_files[] = ["digits" => "$minute"];
-    $play_files[] = ["text" => "דקות"];
-    $play_files[] = ["text" => "לשיחה הבאה הקישו 4, לשיחה הקודמת 6, ליציאה כוכבית"];
+    $play_files[] = ["text" => "בתאריך $day ל $month בשעה $hour $minute"];
 }
 
 // --- Step 5: Navigation menu ---
