@@ -157,26 +157,26 @@ if (!isset($_GET['nav'])) {
     $count = count($last_calls);
     // "You have X calls" intro
     $play_files[] = ["fileId" => "3", "extensionId" => ""];       // "You have"
-    $play_files[] = ["number" => $count];                          // number of calls
+    $play_files[] = ["text" => "$count"];                           // number of calls
     $play_files[] = ["fileId" => "4", "extensionId" => ""];       // "calls"
 }
 
 // Call details:
 $play_files[] = ["fileId" => "5", "extensionId" => ""];           // "From number"
-$play_files[] = ["digits" => $data['src']];                        // source phone number (read as digits)
+$play_files[] = ["text" => $data['src']];                          // source phone number
 $play_files[] = ["fileId" => "6", "extensionId" => ""];           // "Duration"
-$play_files[] = ["number" => $minutes];                            // minutes
+$play_files[] = ["text" => "$minutes"];                            // minutes
 $play_files[] = ["fileId" => "7", "extensionId" => ""];           // "minutes and"
-$play_files[] = ["number" => $seconds];                            // seconds
+$play_files[] = ["text" => "$seconds"];                            // seconds
 $play_files[] = ["fileId" => "8", "extensionId" => ""];           // "seconds"
 $play_files[] = ["fileId" => "9", "extensionId" => ""];           // "Date"
-$play_files[] = ["number" => $day];                                // day
+$play_files[] = ["text" => "$day"];                                // day
 $play_files[] = ["fileId" => "10", "extensionId" => ""];          // "month"
-$play_files[] = ["number" => $month];                              // month number
+$play_files[] = ["text" => "$month"];                              // month number
 $play_files[] = ["fileId" => "11", "extensionId" => ""];          // "Hour"
-$play_files[] = ["number" => $hour];                               // hour
+$play_files[] = ["text" => "$hour"];                               // hour
 $play_files[] = ["fileId" => "12", "extensionId" => ""];          // "and"
-$play_files[] = ["number" => $minute];                             // minute
+$play_files[] = ["text" => "$minute"];                             // minute
 $play_files[] = ["fileId" => "13", "extensionId" => ""];          // closing message
 
 // --- Step 5: Play call info + navigation menu ---
