@@ -2,10 +2,7 @@
 /**
  * PBX API Integration - Last Calls IVR
  *
- * Flow:
- * 1. Intro + language selection
- * 2. Mode selection: 1=continuous, 2=manual navigation
- * 3. Play calls
+ * Plays all calls continuously. User can press 4=skip next, 6=previous, *=exit during playback.
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -51,46 +48,15 @@ if ($lang === '*') {
     exit;
 }
 
-// --- Step 2: Mode selection ---
-if (!isset($_GET['mode'])) {
-    if ($lang === '2') {
-        $files = [
-            ["text" => "For continuous playback press 1"],
-            ["text" => "To browse manually press 2"]
-        ];
-    } else {
-        $files = [
-            ["text" => "להשמעה ברצף הקישו 1"],
-            ["text" => "לניווט ידני הקישו 2"]
-        ];
-    }
-    $result = [
-        "type" => "simpleMenu",
-        "name" => "mode",
-        "times" => 2,
-        "timeout" => 5,
-        "enabledKeys" => "1,2,*",
-        "files" => $files
-    ];
-    echo json_encode($result, JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-$mode = $_GET['mode'] ?? '1';
-if ($mode === '*') {
-    if ($call_id && file_exists("$call_id.call")) unlink("$call_id.call");
-    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
 // --- Load data ---
 $last_calls = [];
 if (file_exists("$call_id.call")) {
     $last_calls = json_decode(file_get_contents("$call_id.call"), true);
 }
 if (!is_array($last_calls)) $last_calls = [];
+$total = count($last_calls);
 
-if (count($last_calls) < 1) {
+if ($total < 1) {
     $msg = ($lang === '2') ? "You have no missed calls" : "אין שיחות שלא נענו";
     $result = [
         ["type" => "audioPlayer", "name" => "noData", "files" => [["text" => $msg]]],
@@ -99,6 +65,30 @@ if (count($last_calls) < 1) {
     echo json_encode($result, JSON_UNESCAPED_UNICODE);
     exit;
 }
+
+// --- Handle navigation (when user presses key during playback) ---
+$nav = $_GET['nav'] ?? '';
+if ($nav === '*') {
+    if ($call_id && file_exists("$call_id.call")) unlink("$call_id.call");
+    if ($call_id && file_exists("$call_id.pos")) unlink("$call_id.pos");
+    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// Position tracking
+$pos_file = "$call_id.pos";
+$hold = 0;
+if (file_exists($pos_file)) {
+    $hold = (int)file_get_contents($pos_file);
+}
+
+if ($nav === '6' && $hold > 0) {
+    $hold--;
+} elseif ($nav === '4' && $hold < $total - 1) {
+    $hold++;
+}
+
+file_put_contents($pos_file, $hold);
 
 // --- Helper functions ---
 function numberToWords($num) {
@@ -143,84 +133,11 @@ function buildCallFiles($data, $lang) {
     return $files;
 }
 
-$total = count($last_calls);
-
-// ==========================================
-// MODE 1: Continuous playback
-// ==========================================
-if ($mode === '1') {
-    $play_files = [];
-    if ($lang === '2') {
-        $play_files[] = ["text" => "You have " . numberToWords($total) . " calls"];
-    } else {
-        $play_files[] = ["text" => "יש לך"];
-        $play_files[] = ["digits" => "$total"];
-        $play_files[] = ["text" => "שיחות"];
-    }
-
-    foreach ($last_calls as $data) {
-        $play_files = array_merge($play_files, buildCallFiles($data, $lang));
-    }
-
-    $result = [
-        "type" => "simpleMenu",
-        "name" => "nav",
-        "times" => 1,
-        "timeout" => 1,
-        "enabledKeys" => "*",
-        "setMusic" => "no",
-        "files" => $play_files
-    ];
-    echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    exit;
-}
-
-// ==========================================
-// MODE 2: Manual navigation
-// ==========================================
-$nav = $_GET['nav'] ?? '';
-if ($nav === '*') {
-    if ($call_id && file_exists("$call_id.call")) unlink("$call_id.call");
-    if ($call_id && file_exists("$call_id.pos")) unlink("$call_id.pos");
-    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// Position tracking
-$pos_file = "$call_id.pos";
-$hold = 0;
-if (file_exists($pos_file)) {
-    $hold = (int)file_get_contents($pos_file);
-}
-
-if ($nav === '6' && $hold > 0) {
-    $hold--;
-} elseif ($nav === '4') {
-    $hold++;
-}
-
-file_put_contents($pos_file, $hold);
-
-// End of list
-if ($hold >= $total) {
-    $msg = ($lang === '2') ? "No more calls" : "אין עוד שיחות";
-    $result = [
-        ["type" => "audioPlayer", "name" => "endList", "files" => [["text" => $msg]]],
-        ["type" => "goTo", "goTo" => ".."]
-    ];
-    echo json_encode($result, JSON_UNESCAPED_UNICODE);
-    exit;
-}
-if ($hold < 0) {
-    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// Build current call
-$data = $last_calls[$hold];
+// --- Build continuous stream from current position to end ---
 $play_files = [];
 
-if ($hold === 0) {
+// Show count only on first play (position 0, no nav yet)
+if ($hold === 0 && !isset($_GET['nav'])) {
     if ($lang === '2') {
         $play_files[] = ["text" => "You have " . numberToWords($total) . " calls"];
     } else {
@@ -230,20 +147,17 @@ if ($hold === 0) {
     }
 }
 
-$play_files = array_merge($play_files, buildCallFiles($data, $lang));
-
-// Navigation instructions
-if ($lang === '2') {
-    $play_files[] = ["text" => "For next press 4, previous 6, exit star"];
-} else {
-    $play_files[] = ["text" => "הבאה 4, קודמת 6, יציאה כוכבית"];
+// Add all calls from current position to end
+for ($i = $hold; $i < $total; $i++) {
+    $play_files = array_merge($play_files, buildCallFiles($last_calls[$i], $lang));
 }
 
+// --- Play with navigation keys enabled ---
 $result = [
     "type" => "simpleMenu",
     "name" => "nav",
-    "times" => 3,
-    "timeout" => 5,
+    "times" => 1,
+    "timeout" => 1,
     "enabledKeys" => "4,6,*",
     "setMusic" => "no",
     "extensionChange" => ".",
