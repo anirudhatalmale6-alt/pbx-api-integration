@@ -3,12 +3,9 @@
  * PBX API Integration - Last Calls IVR
  *
  * Flow:
- * 1. Intro: "שלום הגעתם לשירות מי התקשר אלי"
- * 2. Language selection: Hebrew=1, English=2
- * 3. Fetch last calls from CellStation API
- * 4. Play call details in selected language
- * 5. Navigate: 4=next, 6=previous, *=exit
- * 6. On hangup -> cleanup temp file
+ * 1. Intro + language selection (data fetched in background)
+ * 2. Play ALL calls continuously in one stream
+ * 3. User can press * to exit anytime
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -17,12 +14,10 @@ header('Content-Type: application/json; charset=utf-8');
 $call_id    = $_GET['PBXcallId'] ?? '';
 $phone      = $_GET['PBXphone'] ?? '';
 $call_status = $_GET['PBXcallStatus'] ?? '';
-$extension_id = $_GET['PBXextensionId'] ?? '';
 
 // --- Handle hangup ---
 if ($call_status === 'HANGUP') {
     if ($call_id && file_exists("$call_id.call")) unlink("$call_id.call");
-    if ($call_id && file_exists("$call_id.pos")) unlink("$call_id.pos");
     exit;
 }
 
@@ -53,15 +48,13 @@ if (!isset($_GET['lang'])) {
 
 // --- Handle exit (* key) ---
 $lang = $_GET['lang'] ?? '1';
-$nav = $_GET['nav'] ?? '';
-if ($lang === '*' || $nav === '*') {
+if ($lang === '*') {
     if ($call_id && file_exists("$call_id.call")) unlink("$call_id.call");
-    if ($call_id && file_exists("$call_id.pos")) unlink("$call_id.pos");
     echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// --- Step 2: Load saved data and navigate ---
+// --- Step 2: Load saved data ---
 $last_calls = [];
 if (file_exists("$call_id.call")) {
     $last_calls = json_decode(file_get_contents("$call_id.call"), true);
@@ -69,24 +62,6 @@ if (file_exists("$call_id.call")) {
 if (!is_array($last_calls)) {
     $last_calls = [];
 }
-
-// Position tracking using file
-$pos_file = "$call_id.pos";
-$hold = 0;
-if (file_exists($pos_file)) {
-    $hold = (int)file_get_contents($pos_file);
-}
-
-// Handle navigation
-if ($nav === '6' && $hold > 0) {
-    $hold--;
-} elseif (isset($_GET['nav'])) {
-    // nav=4 or timeout (empty) = advance to next
-    $hold++;
-}
-
-// Save position
-file_put_contents($pos_file, $hold);
 
 // --- No calls ---
 if (count($last_calls) < 1) {
@@ -99,39 +74,7 @@ if (count($last_calls) < 1) {
     exit;
 }
 
-// --- End of list ---
-if ($hold >= count($last_calls)) {
-    $msg = ($lang === '2') ? "No more calls" : "אין עוד שיחות";
-    $result = [
-        ["type" => "audioPlayer", "name" => "endList", "files" => [["text" => $msg]]],
-        ["type" => "goTo", "goTo" => ".."]
-    ];
-    echo json_encode($result, JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-if ($hold < 0) {
-    echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// --- Step 4: Build call info playback ---
-$data = $last_calls[$hold];
-$sec = gmdate('i:s', $data['sec']);
-$sec_arr = explode(':', $sec);
-
-$date_time = explode(' ', $data['datetime']);
-$date_arr = explode('-', $date_time[0]);
-$time_arr = explode(':', $date_time[1]);
-
-$minutes = $sec_arr[0] + 0;
-$seconds = $sec_arr[1] + 0;
-$day     = $date_arr[2] + 0;
-$month   = $date_arr[1] + 0;
-$hour    = $time_arr[0] + 0;
-$minute  = $time_arr[1] + 0;
-
-// --- Function to convert number to English digit words separated by commas ---
+// --- Function to convert number to English digit words ---
 function numberToWords($num) {
     $digits = ['zero','one','two','three','four','five','six','seven','eight','nine'];
     $str = (string)$num;
@@ -145,45 +88,68 @@ function numberToWords($num) {
     return implode(',', $words);
 }
 
+// --- Build ALL calls into one continuous stream ---
 $play_files = [];
+$total = count($last_calls);
 
 if ($lang === '2') {
-    // --- ENGLISH: All text ---
-    if ($hold === 0) {
-        $count = count($last_calls);
-        $play_files[] = ["text" => "You have " . numberToWords($count) . " calls"];
+    // --- ENGLISH ---
+    $play_files[] = ["text" => "You have " . numberToWords($total) . " calls"];
+    foreach ($last_calls as $data) {
+        $sec = gmdate('i:s', $data['sec']);
+        $sec_arr = explode(':', $sec);
+        $date_time = explode(' ', $data['datetime']);
+        $date_arr = explode('-', $date_time[0]);
+        $time_arr = explode(':', $date_time[1]);
+        $minutes = $sec_arr[0] + 0;
+        $seconds = $sec_arr[1] + 0;
+        $day     = $date_arr[2] + 0;
+        $month   = $date_arr[1] + 0;
+        $hour    = $time_arr[0] + 0;
+        $minute  = $time_arr[1] + 0;
+
+        $play_files[] = ["text" => "From number"];
+        $play_files[] = ["text" => numberToWords($data['src'])];
+        $play_files[] = ["text" => "Duration " . numberToWords($minutes) . " minutes and " . numberToWords($seconds) . " seconds"];
+        $play_files[] = ["text" => "On $day $month at $hour $minute"];
     }
-    $play_files[] = ["text" => "From number"];
-    $play_files[] = ["text" => numberToWords($data['src'])];
-    $play_files[] = ["text" => "Duration " . numberToWords($minutes) . " minutes and " . numberToWords($seconds) . " seconds"];
-    $play_files[] = ["text" => "On $day $month at $hour $minute"];
 } else {
-    // --- HEBREW: text for words, digits for phone, text for date/time ---
-    if ($hold === 0) {
-        $count = count($last_calls);
-        $play_files[] = ["text" => "יש לך"];
-        $play_files[] = ["digits" => "$count"];
-        $play_files[] = ["text" => "שיחות"];
+    // --- HEBREW ---
+    $play_files[] = ["text" => "יש לך"];
+    $play_files[] = ["digits" => "$total"];
+    $play_files[] = ["text" => "שיחות"];
+    foreach ($last_calls as $data) {
+        $sec = gmdate('i:s', $data['sec']);
+        $sec_arr = explode(':', $sec);
+        $date_time = explode(' ', $data['datetime']);
+        $date_arr = explode('-', $date_time[0]);
+        $time_arr = explode(':', $date_time[1]);
+        $minutes = $sec_arr[0] + 0;
+        $seconds = $sec_arr[1] + 0;
+        $day     = $date_arr[2] + 0;
+        $month   = $date_arr[1] + 0;
+        $hour    = $time_arr[0] + 0;
+        $minute  = $time_arr[1] + 0;
+
+        $play_files[] = ["text" => "ממספר"];
+        $play_files[] = ["digits" => $data['src']];
+        $play_files[] = ["text" => "משך שיחה"];
+        $play_files[] = ["digits" => "$minutes"];
+        $play_files[] = ["text" => "דקות ו"];
+        $play_files[] = ["digits" => "$seconds"];
+        $play_files[] = ["text" => "שניות"];
+        $play_files[] = ["text" => "בתאריך $day ל $month בשעה $hour $minute"];
     }
-    $play_files[] = ["text" => "ממספר"];
-    $play_files[] = ["digits" => $data['src']];
-    $play_files[] = ["text" => "משך שיחה"];
-    $play_files[] = ["digits" => "$minutes"];
-    $play_files[] = ["text" => "דקות ו"];
-    $play_files[] = ["digits" => "$seconds"];
-    $play_files[] = ["text" => "שניות"];
-    $play_files[] = ["text" => "בתאריך $day ל $month בשעה $hour $minute"];
 }
 
-// --- Step 5: Navigation menu ---
+// --- Play all calls, user can press * to exit ---
 $result = [
     "type" => "simpleMenu",
     "name" => "nav",
     "times" => 1,
     "timeout" => 1,
-    "enabledKeys" => "0,4,6,*",
+    "enabledKeys" => "*",
     "setMusic" => "no",
-    "extensionChange" => ".",
     "files" => $play_files
 ];
 
