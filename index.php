@@ -178,14 +178,14 @@ if ($lang === '2') {
     $play_files[] = ["fileId" => "5", "extensionId" => ""];
     $play_files[] = ["digits" => $data['src']];
     $play_files[] = ["fileId" => "6", "extensionId" => ""];
-    $play_files[] = ["text" => "$minutes"];
+    $play_files[] = ["digits" => "$minutes"];
     $play_files[] = ["fileId" => "7", "extensionId" => ""];
-    $play_files[] = ["text" => "$seconds"];
+    $play_files[] = ["digits" => "$seconds"];
     $play_files[] = ["fileId" => "8", "extensionId" => ""];
     $play_files[] = ["fileId" => "9", "extensionId" => ""];
-    $play_files[] = ["text" => "$day"];
+    $play_files[] = ["digits" => "$day"];
     $play_files[] = ["fileId" => "10", "extensionId" => ""];
-    $play_files[] = ["text" => "$month"];
+    $play_files[] = ["digits" => "$month"];
     $play_files[] = ["fileId" => "11", "extensionId" => ""];
     $play_files[] = ["digits" => "$hour"];
     $play_files[] = ["fileId" => "12", "extensionId" => ""];
