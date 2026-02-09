@@ -21,9 +21,8 @@ $extension_id = $_GET['PBXextensionId'] ?? '';
 
 // --- Handle hangup ---
 if ($call_status === 'HANGUP') {
-    if ($call_id && file_exists("$call_id.call")) {
-        unlink("$call_id.call");
-    }
+    if ($call_id && file_exists("$call_id.call")) unlink("$call_id.call");
+    if ($call_id && file_exists("$call_id.pos")) unlink("$call_id.pos");
     exit;
 }
 
@@ -54,7 +53,10 @@ if (!isset($_GET['lang'])) {
 
 // --- Handle exit (* key) ---
 $lang = $_GET['lang'] ?? '1';
-if ($lang === '*') {
+$nav = $_GET['nav'] ?? '';
+if ($lang === '*' || $nav === '*') {
+    if ($call_id && file_exists("$call_id.call")) unlink("$call_id.call");
+    if ($call_id && file_exists("$call_id.pos")) unlink("$call_id.pos");
     echo json_encode(["type" => "goTo", "goTo" => ".."], JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -68,18 +70,23 @@ if (!is_array($last_calls)) {
     $last_calls = [];
 }
 
-// Calculate current position
-// Count nav=4 (next) and nav=6 (prev)
-// Timeout (nav= empty) counts as next (auto-advance)
-$query = $_SERVER['QUERY_STRING'] ?? '';
-$next_count = substr_count($query, 'nav=4');
-$prev_count = substr_count($query, 'nav=6');
-// Count total nav params minus next/prev/exit = timeout auto-advances
-preg_match_all('/nav=/', $query, $all_nav);
-$total_nav = count($all_nav[0]);
-$star_count = substr_count($query, 'nav=*');
-$auto_next = $total_nav - $next_count - $prev_count - $star_count;
-$hold = ($next_count + $auto_next) - $prev_count;
+// Position tracking using file
+$pos_file = "$call_id.pos";
+$hold = 0;
+if (file_exists($pos_file)) {
+    $hold = (int)file_get_contents($pos_file);
+}
+
+// Handle navigation
+if ($nav === '6' && $hold > 0) {
+    $hold--;
+} elseif (isset($_GET['nav'])) {
+    // nav=4 or timeout (empty) = advance to next
+    $hold++;
+}
+
+// Save position
+file_put_contents($pos_file, $hold);
 
 // --- No calls ---
 if (count($last_calls) < 1) {
@@ -142,7 +149,7 @@ $play_files = [];
 
 if ($lang === '2') {
     // --- ENGLISH: All text ---
-    if (!isset($_GET['nav'])) {
+    if ($hold === 0) {
         $count = count($last_calls);
         $play_files[] = ["text" => "You have " . numberToWords($count) . " calls"];
     }
@@ -152,7 +159,7 @@ if ($lang === '2') {
     $play_files[] = ["text" => "On $day $month at $hour $minute"];
 } else {
     // --- HEBREW: text for words, digits for phone, text for date/time ---
-    if (!isset($_GET['nav'])) {
+    if ($hold === 0) {
         $count = count($last_calls);
         $play_files[] = ["text" => "יש לך"];
         $play_files[] = ["digits" => "$count"];
